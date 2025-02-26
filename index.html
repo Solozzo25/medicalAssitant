@@ -1,9 +1,326 @@
-<form action="/.netlify/functions/handler" method="POST">
-  <label for="history">Historia pacjenta:</label>
-  <textarea id="history" name="history"></textarea>
-  <label for="results">Wyniki badań:</label>
-  <textarea id="results" name="results"></textarea>
-  <label for="notes">Uwagi dodatkowe:</label>
-  <textarea id="notes" name="notes"></textarea>
-  <button type="submit">Wyślij</button>
-</form>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Analysis Assistant</title>
+    <!-- Include Tailwind CSS via CDN -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        /* Additional custom styles */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid white;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-blue-600 p-4 md:p-6">
+            <h1 class="text-xl md:text-2xl font-bold text-white">Medical Analysis Assistant</h1>
+            <p class="text-blue-100 mt-1">Input patient data to receive analysis</p>
+        </div>
+        
+        <div class="p-4 md:p-6">
+            <!-- Form View -->
+            <div id="form-view" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Patient Age
+                        </label>
+                        <input
+                            type="number"
+                            id="age"
+                            class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                            min="0"
+                            max="120"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Biological Sex
+                        </label>
+                        <select
+                            id="sex"
+                            class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                        >
+                            <option value="">Select sex</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Examination Results
+                    </label>
+                    <textarea
+                        id="examResults"
+                        rows="3"
+                        class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter physical examination findings, vital signs, etc."
+                        required
+                    ></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Laboratory Results
+                    </label>
+                    <textarea
+                        id="labResults"
+                        rows="3"
+                        class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter lab values, imaging results, etc."
+                        required
+                    ></textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button
+                        id="clear-btn"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        Clear
+                    </button>
+                    <button
+                        id="submit-btn"
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        Get Analysis
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Results View (hidden by default) -->
+            <div id="results-view" class="space-y-6 hidden">
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                    <h2 class="text-lg font-semibold text-blue-800 mb-2">Analysis Results</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-500">Summary</h3>
+                            <p id="summary-text" class="mt-1 text-gray-800"></p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-500">Recommendations</h3>
+                            <p id="recommendations-text" class="mt-1 text-gray-800"></p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-500">Risk Factors</h3>
+                            <p id="risk-factors-text" class="mt-1 text-gray-800"></p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-500">Additional Tests</h3>
+                            <p id="additional-tests-text" class="mt-1 text-gray-800"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end">
+                    <button
+                        id="new-patient-btn"
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        Enter New Patient Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="mt-8 text-center text-gray-500 text-sm">
+        <p>© 2025 Medical Analysis Assistant. For clinical decision support only.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM References
+            const formView = document.getElementById('form-view');
+            const resultsView = document.getElementById('results-view');
+            const submitBtn = document.getElementById('submit-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const newPatientBtn = document.getElementById('new-patient-btn');
+            
+            // Get form inputs
+            const ageInput = document.getElementById('age');
+            const sexSelect = document.getElementById('sex');
+            const examResultsTextarea = document.getElementById('examResults');
+            const labResultsTextarea = document.getElementById('labResults');
+            
+            // Get result text elements
+            const summaryText = document.getElementById('summary-text');
+            const recommendationsText = document.getElementById('recommendations-text');
+            const riskFactorsText = document.getElementById('risk-factors-text');
+            const additionalTestsText = document.getElementById('additional-tests-text');
+            
+            // Event handlers
+            submitBtn.addEventListener('click', handleSubmit);
+            clearBtn.addEventListener('click', clearForm);
+            newPatientBtn.addEventListener('click', showFormView);
+            
+            function handleSubmit() {
+                // Form validation
+                if (!validateForm()) {
+                    return;
+                }
+                
+                // Show loading state
+                const originalButtonText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<div class="spinner"></div> Analyzing...';
+                submitBtn.disabled = true;
+                
+                // Get form data
+                const formData = {
+                    age: ageInput.value,
+                    sex: sexSelect.value,
+                    examResults: examResultsTextarea.value,
+                    labResults: labResultsTextarea.value
+                };
+                
+                // Simulate API call to Perplexity
+                // In production, replace with actual API call
+                setTimeout(() => {
+                    analyzeData(formData)
+                        .then(results => {
+                            displayResults(results);
+                            showResultsView();
+                        })
+                        .catch(error => {
+                            alert('Error analyzing data: ' + error.message);
+                            console.error(error);
+                        })
+                        .finally(() => {
+                            // Reset button state
+                            submitBtn.innerHTML = originalButtonText;
+                            submitBtn.disabled = false;
+                        });
+                }, 1500);
+            }
+            
+            function validateForm() {
+                if (!ageInput.value) {
+                    alert('Please enter patient age');
+                    ageInput.focus();
+                    return false;
+                }
+                
+                if (!sexSelect.value) {
+                    alert('Please select patient biological sex');
+                    sexSelect.focus();
+                    return false;
+                }
+                
+                if (!examResultsTextarea.value) {
+                    alert('Please enter examination results');
+                    examResultsTextarea.focus();
+                    return false;
+                }
+                
+                if (!labResultsTextarea.value) {
+                    alert('Please enter laboratory results');
+                    labResultsTextarea.focus();
+                    return false;
+                }
+                
+                return true;
+            }
+            
+            function clearForm() {
+                ageInput.value = '';
+                sexSelect.value = '';
+                examResultsTextarea.value = '';
+                labResultsTextarea.value = '';
+            }
+            
+            function showFormView() {
+                resultsView.classList.add('hidden');
+                formView.classList.remove('hidden');
+                clearForm();
+            }
+            
+            function showResultsView() {
+                formView.classList.add('hidden');
+                resultsView.classList.remove('hidden');
+                resultsView.classList.add('fade-in');
+                setTimeout(() => {
+                    resultsView.classList.remove('fade-in');
+                }, 500);
+            }
+            
+            function displayResults(results) {
+                summaryText.textContent = results.summary;
+                recommendationsText.textContent = results.recommendations;
+                riskFactorsText.textContent = results.riskFactors;
+                additionalTestsText.textContent = results.additionalTests;
+            }
+            
+            // This function would be replaced with actual API call to Perplexity
+            async function analyzeData(data) {
+                // In production: Replace with actual API call to Perplexity
+                
+                // For demo purposes, we're returning mock results
+                // This is where you would integrate with Perplexity API
+                return {
+                    summary: "Based on the provided information, this appears to be a case of mild hypertension with slightly elevated cholesterol levels.",
+                    recommendations: "Consider lifestyle modifications including diet changes and increased physical activity. Follow-up in 3 months to reassess blood pressure values.",
+                    riskFactors: "Age, family history, and sedentary lifestyle are contributing factors.",
+                    additionalTests: "Consider an ECG and comprehensive metabolic panel at next visit."
+                };
+                
+                /* Perplexity API integration would look something like this:
+                
+                try {
+                    const response = await fetch('https://api.perplexity.ai/analyze', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer YOUR_API_KEY'
+                        },
+                        body: JSON.stringify({
+                            patient_data: data
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('API response was not ok');
+                    }
+                    
+                    return await response.json();
+                } catch (error) {
+                    console.error('Error calling Perplexity API:', error);
+                    throw error;
+                }
+                */
+            }
+        });
+    </script>
+</body>
+</html>
