@@ -282,18 +282,125 @@
                 additionalTestsText.textContent = results.additionalTests;
             }
             
-            // This function would be replaced with actual API call to Perplexity
-            async function analyzeData(data) {
-                // In production: Replace with actual API call to Perplexity
-                
-                // For demo purposes, we're returning mock results
-                // This is where you would integrate with Perplexity API
-                return {
-                    summary: "Based on the provided information, this appears to be a case of mild hypertension with slightly elevated cholesterol levels.",
-                    recommendations: "Consider lifestyle modifications including diet changes and increased physical activity. Follow-up in 3 months to reassess blood pressure values.",
-                    riskFactors: "Age, family history, and sedentary lifestyle are contributing factors.",
-                    additionalTests: "Consider an ECG and comprehensive metabolic panel at next visit."
-                };
+           // Funkcja do tworzenia strukturyzowanego promptu dla Perplexity
+async function createPerplexityPrompt(patientData) {
+  // Wyodrębnij dane pacjenta
+  const { age, sex, examResults, labResults } = patientData;
+  
+  // Stwórz ustrukturyzowany prompt
+  const prompt = `
+Analiza medyczna dla pacjenta:
+- Wiek: ${age}
+- Płeć: ${sex}
+- Wyniki badania: ${examResults}
+- Wyniki laboratoryjne: ${labResults}
+
+Proszę o przygotowanie analizy medycznej z wyraźnym podziałem na następujące sekcje:
+
+1. DIAGNOZA GłÓWNA: Najbardziej prawdopodobna diagnoza na podstawie przedstawionych danych.
+
+2. DIAGNOZA RÓŻNICOWA: Lista innych możliwych rozpoznań, które należy wziąć pod uwagę, uszeregowana według prawdopodobieństwa.
+
+3. REKOMENDACJE LECZENIA: W zależności od ustalnej diagnozy głównej wyszukaj na stronie medycznego towarzystwa naukowego wytycznych dotyczących leczenia z podaniem konkretnych wytycznych (np. w przypadku chorób serca, kardiologicznego towarzystwa naukowego).
+
+4. FARMAKOTERAPIA: Wyszukaj charakterystykę zalecanych leków oraz przedstaw wskazania oraz przeciwwskazania
+
+5. DALSZE POSTĘPOWANIE: Bardzo krótko przedstaw sugestie dotyczące dodatkowych badań i konsultacji specjalistycznych.
+
+Odpowiedź powinna być zwięzła, oparta na aktualnej wiedzy medycznej i zawierać odniesienia do aktualnych wytycznych.
+`;
+
+  return prompt;
+}
+
+// Funkcja do wysyłania żądania do Perplexity API
+async function callPerplexityAPI(prompt) {
+  try {
+    // Tutaj wstaw faktyczny kod do połączenia z API Perplexity
+    const response = await fetch('https://api.perplexity.ai/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': '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'
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        // Możesz dodać dodatkowe parametry API tutaj
+        model: "sonar-deep-research", // Przykładowa nazwa modelu
+        max_tokens: 100000,
+        temperature: 0.1 // Niska temperatura dla bardziej przewidywalnych, medycznych odpowiedzi
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Błąd w odpowiedzi API');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Błąd podczas wywoływania Perplexity API:', error);
+    throw error;
+  }
+}
+
+// Funkcja do parsowania odpowiedzi z Perplexity i podziału na sekcje
+function parsePerplexityResponse(responseData) {
+  const fullText = responseData.text || responseData.output || responseData.result || "";
+  
+  // Próba podziału odpowiedzi na sekcje
+  const sections = {
+    diagnosis: extractSection(fullText, "DIAGNOZA:", "DIAGNOZA RÓŻNICOWA:"),
+    differentialDiagnosis: extractSection(fullText, "DIAGNOZA RÓŻNICOWA:", "REKOMENDACJE LECZENIA:"),
+    treatmentRecommendations: extractSection(fullText, "REKOMENDACJE LECZENIA:", "FARMAKOTERAPIA:"),
+    pharmacotherapy: extractSection(fullText, "FARMAKOTERAPIA:", "DALSZE POSTĘPOWANIE:"),
+    furtherSteps: extractSection(fullText, "DALSZE POSTĘPOWANIE:", null)
+  };
+  
+  return sections;
+}
+
+// Pomocnicza funkcja do wyodrębniania sekcji z tekstu
+function extractSection(text, startMarker, endMarker) {
+  let startIndex = text.indexOf(startMarker);
+  if (startIndex === -1) return "";
+  
+  startIndex += startMarker.length;
+  
+  let endIndex;
+  if (endMarker) {
+    endIndex = text.indexOf(endMarker, startIndex);
+    if (endIndex === -1) endIndex = text.length;
+  } else {
+    endIndex = text.length;
+  }
+  
+  return text.substring(startIndex, endIndex).trim();
+}
+
+// Przykład użycia w funkcji analyzeData
+async function analyzeData(patientData) {
+  try {
+    // 1. Utwórz prompt
+    const prompt = await createPerplexityPrompt(patientData);
+    
+    // 2. Wywołaj API Perplexity
+    const apiResponse = await callPerplexityAPI(prompt);
+    
+    // 3. Przetwórz odpowiedź
+    const parsedSections = parsePerplexityResponse(apiResponse);
+    
+    // 4. Przygotuj dane do wyświetlenia w interfejsie
+    return {
+      summary: parsedSections.diagnosis,
+      recommendations: parsedSections.treatmentRecommendations + "\n\n" + parsedSections.pharmacotherapy,
+      riskFactors: parsedSections.differentialDiagnosis,
+      additionalTests: parsedSections.furtherSteps
+    };
+  } catch (error) {
+    console.error("Błąd podczas analizy danych:", error);
+    throw error;
+  }
+}
                 
                 /* Perplexity API integration would look something like this:
                 
