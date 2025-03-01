@@ -32,6 +32,10 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        .status-indicator {
+            transition: all 0.3s ease;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-gray-50 p-4 md:p-8">
@@ -42,6 +46,33 @@
         </div>
         
         <div class="p-4 md:p-6">
+            <!-- Status Bar -->
+            <div id="status-bar" class="mb-4 hidden">
+                <div class="rounded-md bg-blue-50 p-3">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <div id="status-icon" class="h-5 w-5 text-blue-400"></div>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-blue-800" id="status-title">Processing...</h3>
+                            <div class="mt-1 text-sm text-blue-700">
+                                <p id="status-message">Please wait while we process your request.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Debug Panel (hidden by default, can be toggled in development) -->
+            <div id="debug-panel" class="mb-4 hidden">
+                <div class="rounded-md bg-gray-50 p-3 border border-gray-200">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Debug Information</h3>
+                    <div class="text-xs font-mono bg-gray-100 p-2 rounded max-h-40 overflow-auto" id="debug-output">
+                        No debug information available.
+                    </div>
+                </div>
+            </div>
+            
             <!-- Form View -->
             <div id="form-view" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -99,6 +130,11 @@
                         placeholder="Enter lab values, imaging results, etc."
                         required
                     ></textarea>
+                </div>
+                
+                <div class="flex items-center space-x-2 mb-4">
+                    <input type="checkbox" id="use-test-data" class="rounded text-blue-600 focus:ring-blue-500">
+                    <label for="use-test-data" class="text-sm text-gray-600">Use test data (no API call)</label>
                 </div>
                 
                 <div class="flex justify-end space-x-3">
@@ -167,12 +203,43 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Debug mode
+            const DEBUG_MODE = true; // Set to false in production
+            
+            // Config
+            const API_CONFIG = {
+                // Store API key in environment variable or config on server
+                // This is exposed in client-side code for demonstration only
+                apiKey: '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',
+                endpoint: 'https://api.perplexity.ai/chat/completions',
+                model: 'sonar-reasoning'
+            };
+            
+            // Status Messages
+            const STATUS = {
+                IDLE: { title: 'Ready', message: 'Form is ready for input.', icon: '' },
+                VALIDATING: { title: 'Validating', message: 'Checking form data...', icon: '<div class="spinner"></div>' },
+                PREPARING: { title: 'Preparing Request', message: 'Formatting your patient data...', icon: '<div class="spinner"></div>' },
+                SENDING: { title: 'Sending Request', message: 'Connecting to analysis service...', icon: '<div class="spinner"></div>' },
+                PROCESSING: { title: 'Processing', message: 'Analyzing patient data...', icon: '<div class="spinner"></div>' },
+                PARSING: { title: 'Parsing Results', message: 'Organizing analysis results...', icon: '<div class="spinner"></div>' },
+                COMPLETE: { title: 'Complete', message: 'Analysis complete!', icon: '<svg class="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>' },
+                ERROR: { title: 'Error', message: 'An error occurred.', icon: '<svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>' }
+            };
+            
             // DOM References
             const formView = document.getElementById('form-view');
             const resultsView = document.getElementById('results-view');
+            const statusBar = document.getElementById('status-bar');
+            const statusTitle = document.getElementById('status-title');
+            const statusMessage = document.getElementById('status-message');
+            const statusIcon = document.getElementById('status-icon');
+            const debugPanel = document.getElementById('debug-panel');
+            const debugOutput = document.getElementById('debug-output');
             const submitBtn = document.getElementById('submit-btn');
             const clearBtn = document.getElementById('clear-btn');
             const newPatientBtn = document.getElementById('new-patient-btn');
+            const useTestDataCheckbox = document.getElementById('use-test-data');
             
             // Get form inputs
             const ageInput = document.getElementById('age');
@@ -187,14 +254,95 @@
             const riskFactorsText = document.getElementById('risk-factors-text');
             const additionalTestsText = document.getElementById('additional-tests-text');
             
+            // Initialize debug panel
+            if (DEBUG_MODE) {
+                debugPanel.classList.remove('hidden');
+            }
+            
+            // Set initial status
+            updateStatus('IDLE');
+            
             // Event handlers
             submitBtn.addEventListener('click', handleSubmit);
             clearBtn.addEventListener('click', clearForm);
             newPatientBtn.addEventListener('click', showFormView);
             
+            // Update status function
+            function updateStatus(statusCode, customMessage = null) {
+                const status = STATUS[statusCode];
+                if (!status) return;
+                
+                statusBar.classList.remove('hidden');
+                statusTitle.textContent = status.title;
+                statusMessage.textContent = customMessage || status.message;
+                statusIcon.innerHTML = status.icon;
+                
+                // Apply appropriate status colors
+                statusBar.className = 'mb-4 status-indicator';
+                
+                switch(statusCode) {
+                    case 'ERROR':
+                        statusBar.classList.add('rounded-md', 'bg-red-50', 'p-3');
+                        statusTitle.className = 'text-sm font-medium text-red-800';
+                        statusMessage.className = 'mt-1 text-sm text-red-700';
+                        break;
+                    case 'COMPLETE':
+                        statusBar.classList.add('rounded-md', 'bg-green-50', 'p-3');
+                        statusTitle.className = 'text-sm font-medium text-green-800';
+                        statusMessage.className = 'mt-1 text-sm text-green-700';
+                        break;
+                    default:
+                        statusBar.classList.add('rounded-md', 'bg-blue-50', 'p-3');
+                        statusTitle.className = 'text-sm font-medium text-blue-800';
+                        statusMessage.className = 'mt-1 text-sm text-blue-700';
+                }
+                
+                // Log to debug panel
+                logDebug(`Status updated: ${statusCode} - ${status.title}: ${customMessage || status.message}`);
+            }
+            
+            // Debug logging function
+            function logDebug(message, data = null) {
+                if (!DEBUG_MODE) return;
+                
+                const timestamp = new Date().toLocaleTimeString();
+                let logMessage = `[${timestamp}] ${message}`;
+                
+                if (data) {
+                    try {
+                        if (typeof data === 'object') {
+                            logMessage += '\n' + JSON.stringify(data, null, 2);
+                        } else {
+                            logMessage += '\n' + data;
+                        }
+                    } catch (e) {
+                        logMessage += '\n[Error stringifying data]';
+                    }
+                }
+                
+                const logEntry = document.createElement('div');
+                logEntry.className = 'mb-2 pb-2 border-b border-gray-200';
+                logEntry.textContent = logMessage;
+                
+                // Keep only the last 10 log entries
+                if (debugOutput.childNodes.length >= 10) {
+                    debugOutput.removeChild(debugOutput.firstChild);
+                }
+                
+                debugOutput.appendChild(logEntry);
+                debugOutput.scrollTop = debugOutput.scrollHeight;
+                
+                // Also log to console
+                console.log(logMessage);
+                if (data) console.log(data);
+            }
+            
             function handleSubmit() {
+                updateStatus('VALIDATING');
+                
                 // Form validation
                 if (!validateForm()) {
+                    updateStatus('ERROR', 'Please fill in all required fields.');
                     return;
                 }
                 
@@ -211,15 +359,20 @@
                     labResults: labResultsTextarea.value
                 };
                 
-                // Call Perplexity API
+                logDebug('Form data collected', formData);
+                
+                // Call analysis function
                 analyzeData(formData)
                     .then(results => {
+                        logDebug('Analysis results received', results);
+                        updateStatus('PARSING');
                         displayResults(results);
+                        updateStatus('COMPLETE');
                         showResultsView();
                     })
                     .catch(error => {
-                        alert('Error analyzing data: ' + error.message);
-                        console.error(error);
+                        updateStatus('ERROR', error.message || 'Failed to analyze data. Please try again.');
+                        logDebug('Error during analysis', error);
                     })
                     .finally(() => {
                         // Reset button state
@@ -230,25 +383,21 @@
             
             function validateForm() {
                 if (!ageInput.value) {
-                    alert('Please enter patient age');
                     ageInput.focus();
                     return false;
                 }
                 
                 if (!sexSelect.value) {
-                    alert('Please select patient biological sex');
                     sexSelect.focus();
                     return false;
                 }
                 
                 if (!examResultsTextarea.value) {
-                    alert('Please enter examination results');
                     examResultsTextarea.focus();
                     return false;
                 }
                 
                 if (!labResultsTextarea.value) {
-                    alert('Please enter laboratory results');
                     labResultsTextarea.focus();
                     return false;
                 }
@@ -261,11 +410,13 @@
                 sexSelect.value = '';
                 examResultsTextarea.value = '';
                 labResultsTextarea.value = '';
+                updateStatus('IDLE');
             }
             
             function showFormView() {
                 resultsView.classList.add('hidden');
                 formView.classList.remove('hidden');
+                updateStatus('IDLE');
                 clearForm();
             }
             
@@ -279,15 +430,23 @@
             }
             
             function displayResults(results) {
-                summaryText.textContent = results.diagnosis || "";
-                riskFactorsText.textContent = results.differentialDiagnosis || "";
-                recommendationsText.textContent = results.treatmentRecommendations || "";
-                pharmacotherapyText.textContent = results.pharmacotherapy || "";
-                additionalTestsText.textContent = results.furtherSteps || "";
+                // Format text for display (replacing line breaks with <br> tags)
+                const formatText = (text) => {
+                    return text.replace(/\n/g, '<br>');
+                };
+                
+                // Set results with HTML for proper formatting
+                summaryText.innerHTML = formatText(results.diagnosis || "");
+                riskFactorsText.innerHTML = formatText(results.differentialDiagnosis || "");
+                recommendationsText.innerHTML = formatText(results.treatmentRecommendations || "");
+                pharmacotherapyText.innerHTML = formatText(results.pharmacotherapy || "");
+                additionalTestsText.innerHTML = formatText(results.furtherSteps || "");
             }
             
             // Function to create structured prompt for Perplexity
             function createPerplexityPrompt(patientData) {
+                updateStatus('PREPARING');
+                
                 const { age, sex, examResults, labResults } = patientData;
                 
                 const prompt = `
@@ -299,7 +458,7 @@ Analiza medyczna dla pacjenta:
 
 Proszę o przygotowanie analizy medycznej z wyraźnym podziałem na następujące sekcje:
 
-1. DIAGNOZA GłÓWNA: Najbardziej prawdopodobna diagnoza na podstawie przedstawionych danych.
+1. DIAGNOZA GŁÓWNA: Najbardziej prawdopodobna diagnoza na podstawie przedstawionych danych.
 
 2. DIAGNOZA RÓŻNICOWA: Lista innych możliwych rozpoznań, które należy wziąć pod uwagę, uszeregowana według prawdopodobieństwa.
 
@@ -312,20 +471,23 @@ Proszę o przygotowanie analizy medycznej z wyraźnym podziałem na następując
 Odpowiedź powinna być zwięzła, oparta na aktualnej wiedzy medycznej i zawierać odniesienia do aktualnych wytycznych.
 `;
 
+                logDebug('Prompt created', prompt);
                 return prompt;
             }
             
             // Function to call Perplexity API
             async function callPerplexityAPI(prompt) {
+                updateStatus('SENDING');
+                
                 try {
                     const options = {
                         method: 'POST',
                         headers: {
-                            'Authorization': 'Bearer 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', // Replace with your actual API key
+                            'Authorization': `Bearer ${API_CONFIG.apiKey}`,
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            model: "sonar-reasoning", // You can change to a different model if needed
+                            model: API_CONFIG.model,
                             messages: [
                                 {
                                     role: "system",
@@ -339,92 +501,155 @@ Odpowiedź powinna być zwięzła, oparta na aktualnej wiedzy medycznej i zawier
                         })
                     };
 
-                    const response = await fetch('https://api.perplexity.ai/chat/completions', options);
+                    logDebug('API request prepared', options);
+                    updateStatus('SENDING', 'Connecting to API...');
+                    
+                    const response = await fetch(API_CONFIG.endpoint, options);
+                    logDebug('API response received', {
+                        status: response.status,
+                        statusText: response.statusText
+                    });
                     
                     if (!response.ok) {
-                        throw new Error('API response error: ' + response.status);
+                        updateStatus('ERROR', `API responded with error: ${response.status} ${response.statusText}`);
+                        throw new Error(`API responded with error: ${response.status} ${response.statusText}`);
                     }
                     
+                    updateStatus('PROCESSING', 'Parsing API response...');
                     const data = await response.json();
+                    logDebug('API response data', data);
                     
                     // Typical Perplexity response structure contains a "choices" field
                     if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                        updateStatus('PROCESSING', 'Processing analysis results...');
                         return { text: data.choices[0].message.content };
                     } else {
+                        updateStatus('ERROR', 'Unexpected API response format');
                         throw new Error('Unexpected API response format');
                     }
                 } catch (error) {
-                    console.error('Error calling Perplexity API:', error);
+                    const errorMessage = error.message || 'Error connecting to analysis service';
+                    updateStatus('ERROR', errorMessage);
+                    logDebug('Error calling API', error);
                     throw error;
                 }
             }
             
-            // Helper function to extract sections from text
-            function extractSection(text, startMarker, endMarker) {
-                let startIndex = text.indexOf(startMarker);
-                if (startIndex === -1) return "";
+            // Helper function to extract sections from text with improved robustness
+            function extractSection(text, sectionName) {
+                logDebug(`Extracting section: ${sectionName}`);
+                
+                // Define possible markers for each section
+                const markers = {
+                    "diagnosis": ["DIAGNOZA GŁÓWNA:", "DIAGNOZA:"],
+                    "differentialDiagnosis": ["DIAGNOZA RÓŻNICOWA:"],
+                    "treatmentRecommendations": ["REKOMENDACJE LECZENIA:"],
+                    "pharmacotherapy": ["FARMAKOTERAPIA:"],
+                    "furtherSteps": ["DALSZE POSTĘPOWANIE:"]
+                };
+                
+                // Define section endings
+                const endMarkers = {
+                    "diagnosis": ["DIAGNOZA RÓŻNICOWA:", "2."],
+                    "differentialDiagnosis": ["REKOMENDACJE LECZENIA:", "3."],
+                    "treatmentRecommendations": ["FARMAKOTERAPIA:", "4."],
+                    "pharmacotherapy": ["DALSZE POSTĘPOWANIE:", "5."],
+                    "furtherSteps": []  // Last section, no end marker
+                };
+                
+                const possibleMarkers = markers[sectionName] || [];
+                const possibleEndMarkers = endMarkers[sectionName] || [];
+                
+                if (!possibleMarkers.length) {
+                    logDebug(`No markers defined for section: ${sectionName}`);
+                    return "";
+                }
+                
+                // Try each possible marker
+                let startIndex = -1;
+                let startMarker = "";
+                
+                for (const marker of possibleMarkers) {
+                    startIndex = text.indexOf(marker);
+                    if (startIndex !== -1) {
+                        startMarker = marker;
+                        break;
+                    }
+                }
+                
+                if (startIndex === -1) {
+                    logDebug(`Section not found: ${sectionName}`);
+                    return "";
+                }
                 
                 startIndex += startMarker.length;
                 
-                let endIndex;
-                if (endMarker) {
-                    endIndex = text.indexOf(endMarker, startIndex);
-                    if (endIndex === -1) endIndex = text.length;
-                } else {
-                    endIndex = text.length;
+                // Try each possible end marker
+                let endIndex = text.length;
+                
+                for (const endMarker of possibleEndMarkers) {
+                    const tempEndIndex = text.indexOf(endMarker, startIndex);
+                    if (tempEndIndex !== -1 && tempEndIndex < endIndex) {
+                        endIndex = tempEndIndex;
+                    }
                 }
                 
-                return text.substring(startIndex, endIndex).trim();
+                const result = text.substring(startIndex, endIndex).trim();
+                logDebug(`Extracted ${sectionName}: ${result.substring(0, 50)}...`);
+                return result;
             }
             
             // Function to parse Perplexity response and split into sections
             function parsePerplexityResponse(responseData) {
+                updateStatus('PARSING');
+                
                 const fullText = responseData.text || "";
+                logDebug('Parsing response text', fullText);
                 
                 // Attempt to split response into sections
                 const sections = {
-                    diagnosis: extractSection(fullText, "DIAGNOZA:", "DIAGNOZA RÓŻNICOWA:"),
-                    differentialDiagnosis: extractSection(fullText, "DIAGNOZA RÓŻNICOWA:", "REKOMENDACJE LECZENIA:"),
-                    treatmentRecommendations: extractSection(fullText, "REKOMENDACJE LECZENIA:", "FARMAKOTERAPIA:"),
-                    pharmacotherapy: extractSection(fullText, "FARMAKOTERAPIA:", "DALSZE POSTĘPOWANIE:"),
-                    furtherSteps: extractSection(fullText, "DALSZE POSTĘPOWANIE:", null)
+                    diagnosis: extractSection(fullText, "diagnosis"),
+                    differentialDiagnosis: extractSection(fullText, "differentialDiagnosis"),
+                    treatmentRecommendations: extractSection(fullText, "treatmentRecommendations"),
+                    pharmacotherapy: extractSection(fullText, "pharmacotherapy"),
+                    furtherSteps: extractSection(fullText, "furtherSteps")
                 };
                 
+                // Check if sections are empty and attempt to extract by number format
+                if (!sections.diagnosis && !sections.differentialDiagnosis) {
+                    logDebug('Fallback: attempting extraction by numeric section format');
+                    
+                    // Try extracting by numeric sections (1., 2., etc)
+                    const numericPattern = /\d\.\s+(.*?)(?=\d\.\s+|$)/gs;
+                    const matches = [...fullText.matchAll(numericPattern)];
+                    
+                    if (matches.length >= 5) {
+                        sections.diagnosis = matches[0][1].trim();
+                        sections.differentialDiagnosis = matches[1][1].trim();
+                        sections.treatmentRecommendations = matches[2][1].trim();
+                        sections.pharmacotherapy = matches[3][1].trim();
+                        sections.furtherSteps = matches[4][1].trim();
+                    }
+                }
+                
+                logDebug('Parsed sections', sections);
                 return sections;
             }
+            
+            // Mock data for testing
+            const mockData = {
+                diagnosis: "Na podstawie przedstawionych danych, najbardziej prawdopodobna diagnoza to nadciśnienie tętnicze stopnia 1 z hipercholesterolemią.",
+                differentialDiagnosis: "1. Nadciśnienie wtórne\n2. Izolowana hipercholesterolemia\n3. Zespół metaboliczny\n4. Stres sytuacyjny (nadciśnienie białego fartucha)",
+                treatmentRecommendations: "Zgodnie z wytycznymi ESC/ESH 2023, w przypadku nadciśnienia stopnia 1 z umiarkowanym ryzykiem sercowo-naczyniowym zalecane są:\n1. Modyfikacja stylu życia (dieta DASH, redukcja spożycia soli, aktywność fizyczna 150 min/tydz)\n2. Farmakoterapia, jeśli modyfikacje stylu życia są nieskuteczne po 3-6 miesiącach",
+                pharmacotherapy: "Zalecane leki pierwszego rzutu:\n1. Inhibitory ACE (np. Ramipril 5-10mg 1x dziennie) - działania niepożądane: kaszel, hiperkaliemia\n2. Statyny (np. Atorwastatyna 10-20mg wieczorem) - działania niepożądane: bóle mięśniowe, wzrost enzymów wątrobowych",
+                furtherSteps: "1. EKG spoczynkowe\n2. Badanie dna oka\n3. Kontrola lipidogramu po 3 miesiącach\n4. Zalecany ABPM (24-godzinny pomiar ciśnienia tętniczego)"
+            };
             
             // Main function to analyze patient data
             async function analyzeData(patientData) {
                 try {
-                    // FOR TESTING: Return mock data instead of calling the API
-                    // Remove this block when you're ready to use the real API
-                    if (false) { // Change to false to use real API
-                        return {
-                            diagnosis: "Na podstawie przedstawionych danych, najbardziej prawdopodobna diagnoza to nadciśnienie tętnicze stopnia 1 z hipercholesterolemią.",
-                            differentialDiagnosis: "1. Nadciśnienie wtórne\n2. Izolowana hipercholesterolemia\n3. Zespół metaboliczny\n4. Stres sytuacyjny (nadciśnienie białego fartucha)",
-                            treatmentRecommendations: "Zgodnie z wytycznymi ESC/ESH 2023, w przypadku nadciśnienia stopnia 1 z umiarkowanym ryzykiem sercowo-naczyniowym zalecane są:\n1. Modyfikacja stylu życia (dieta DASH, redukcja spożycia soli, aktywność fizyczna 150 min/tydz)\n2. Farmakoterapia, jeśli modyfikacje stylu życia są nieskuteczne po 3-6 miesiącach",
-                            pharmacotherapy: "Zalecane leki pierwszego rzutu:\n1. Inhibitory ACE (np. Ramipril 5-10mg 1x dziennie) - działania niepożądane: kaszel, hiperkaliemia\n2. Statyny (np. Atorwastatyna 10-20mg wieczorem) - działania niepożądane: bóle mięśniowe, wzrost enzymów wątrobowych",
-                            furtherSteps: "1. EKG spoczynkowe\n2. Badanie dna oka\n3. Kontrola lipidogramu po 3 miesiącach\n4. Zalecany ABPM (24-godzinny pomiar ciśnienia tętniczego)"
-                        };
-                    }
-                    
-                    // 1. Create prompt
-                    const prompt = createPerplexityPrompt(patientData);
-                    
-                    // 2. Call Perplexity API
-                    const apiResponse = await callPerplexityAPI(prompt);
-                    
-                    // 3. Process response
-                    const parsedSections = parsePerplexityResponse(apiResponse);
-                    
-                    // 4. Return data for display
-                    return parsedSections;
-                } catch (error) {
-                    console.error("Error analyzing data:", error);
-                    throw error;
-                }
-            }
-        });
-    </script>
-</body>
-</html>
+                    // Check if we should use test data
+                    if (useTestDataCheckbox.checked) {
+                        logDebug('Using test data instead of API call');
+                        updateStatus('PROCESSING', 'Using test data (API call skipped)');
+                        await new Promise(resolve
