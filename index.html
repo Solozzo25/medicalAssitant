@@ -123,22 +123,27 @@
                     <h2 class="text-lg font-semibold text-blue-800 mb-2">Analysis Results</h2>
                     <div class="space-y-4">
                         <div>
-                            <h3 class="text-sm font-medium text-gray-500">Summary</h3>
+                            <h3 class="text-sm font-medium text-gray-500">Diagnosis</h3>
                             <p id="summary-text" class="mt-1 text-gray-800"></p>
                         </div>
                         
                         <div>
-                            <h3 class="text-sm font-medium text-gray-500">Recommendations</h3>
-                            <p id="recommendations-text" class="mt-1 text-gray-800"></p>
-                        </div>
-                        
-                        <div>
-                            <h3 class="text-sm font-medium text-gray-500">Risk Factors</h3>
+                            <h3 class="text-sm font-medium text-gray-500">Differential Diagnosis</h3>
                             <p id="risk-factors-text" class="mt-1 text-gray-800"></p>
                         </div>
                         
                         <div>
-                            <h3 class="text-sm font-medium text-gray-500">Additional Tests</h3>
+                            <h3 class="text-sm font-medium text-gray-500">Treatment Recommendations</h3>
+                            <p id="recommendations-text" class="mt-1 text-gray-800"></p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-500">Pharmacotherapy</h3>
+                            <p id="pharmacotherapy-text" class="mt-1 text-gray-800"></p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-500">Further Steps</h3>
                             <p id="additional-tests-text" class="mt-1 text-gray-800"></p>
                         </div>
                     </div>
@@ -178,6 +183,7 @@
             // Get result text elements
             const summaryText = document.getElementById('summary-text');
             const recommendationsText = document.getElementById('recommendations-text');
+            const pharmacotherapyText = document.getElementById('pharmacotherapy-text');
             const riskFactorsText = document.getElementById('risk-factors-text');
             const additionalTestsText = document.getElementById('additional-tests-text');
             
@@ -205,24 +211,21 @@
                     labResults: labResultsTextarea.value
                 };
                 
-                // Simulate API call to Perplexity
-                // In production, replace with actual API call
-                setTimeout(() => {
-                    analyzeData(formData)
-                        .then(results => {
-                            displayResults(results);
-                            showResultsView();
-                        })
-                        .catch(error => {
-                            alert('Error analyzing data: ' + error.message);
-                            console.error(error);
-                        })
-                        .finally(() => {
-                            // Reset button state
-                            submitBtn.innerHTML = originalButtonText;
-                            submitBtn.disabled = false;
-                        });
-                }, 1500);
+                // Call Perplexity API
+                analyzeData(formData)
+                    .then(results => {
+                        displayResults(results);
+                        showResultsView();
+                    })
+                    .catch(error => {
+                        alert('Error analyzing data: ' + error.message);
+                        console.error(error);
+                    })
+                    .finally(() => {
+                        // Reset button state
+                        submitBtn.innerHTML = originalButtonText;
+                        submitBtn.disabled = false;
+                    });
             }
             
             function validateForm() {
@@ -276,19 +279,18 @@
             }
             
             function displayResults(results) {
-                summaryText.textContent = results.summary;
-                recommendationsText.textContent = results.recommendations;
-                riskFactorsText.textContent = results.riskFactors;
-                additionalTestsText.textContent = results.additionalTests;
+                summaryText.textContent = results.diagnosis || "";
+                riskFactorsText.textContent = results.differentialDiagnosis || "";
+                recommendationsText.textContent = results.treatmentRecommendations || "";
+                pharmacotherapyText.textContent = results.pharmacotherapy || "";
+                additionalTestsText.textContent = results.furtherSteps || "";
             }
             
-           // Funkcja do tworzenia strukturyzowanego promptu dla Perplexity
-async function createPerplexityPrompt(patientData) {
-  // Wyodrębnij dane pacjenta
-  const { age, sex, examResults, labResults } = patientData;
-  
-  // Stwórz ustrukturyzowany prompt
-  const prompt = `
+            // Function to create structured prompt for Perplexity
+            function createPerplexityPrompt(patientData) {
+                const { age, sex, examResults, labResults } = patientData;
+                
+                const prompt = `
 Analiza medyczna dla pacjenta:
 - Wiek: ${age}
 - Płeć: ${sex}
@@ -310,122 +312,117 @@ Proszę o przygotowanie analizy medycznej z wyraźnym podziałem na następując
 Odpowiedź powinna być zwięzła, oparta na aktualnej wiedzy medycznej i zawierać odniesienia do aktualnych wytycznych.
 `;
 
-  return prompt;
-}
-
-// Funkcja do wysyłania żądania do Perplexity API
-async function callPerplexityAPI(prompt) {
-  try {
-    // Tutaj wstaw faktyczny kod do połączenia z API Perplexity
-    const response = await fetch('https://api.perplexity.ai/analyze', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': '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'
-      },
-      body: JSON.stringify({
-        prompt: prompt,
-        // Możesz dodać dodatkowe parametry API tutaj
-        model: "sonar-deep-research", // Przykładowa nazwa modelu
-        max_tokens: 100000,
-        temperature: 0.1 // Niska temperatura dla bardziej przewidywalnych, medycznych odpowiedzi
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Błąd w odpowiedzi API');
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Błąd podczas wywoływania Perplexity API:', error);
-    throw error;
-  }
-}
-
-// Funkcja do parsowania odpowiedzi z Perplexity i podziału na sekcje
-function parsePerplexityResponse(responseData) {
-  const fullText = responseData.text || responseData.output || responseData.result || "";
-  
-  // Próba podziału odpowiedzi na sekcje
-  const sections = {
-    diagnosis: extractSection(fullText, "DIAGNOZA:", "DIAGNOZA RÓŻNICOWA:"),
-    differentialDiagnosis: extractSection(fullText, "DIAGNOZA RÓŻNICOWA:", "REKOMENDACJE LECZENIA:"),
-    treatmentRecommendations: extractSection(fullText, "REKOMENDACJE LECZENIA:", "FARMAKOTERAPIA:"),
-    pharmacotherapy: extractSection(fullText, "FARMAKOTERAPIA:", "DALSZE POSTĘPOWANIE:"),
-    furtherSteps: extractSection(fullText, "DALSZE POSTĘPOWANIE:", null)
-  };
-  
-  return sections;
-}
-
-// Pomocnicza funkcja do wyodrębniania sekcji z tekstu
-function extractSection(text, startMarker, endMarker) {
-  let startIndex = text.indexOf(startMarker);
-  if (startIndex === -1) return "";
-  
-  startIndex += startMarker.length;
-  
-  let endIndex;
-  if (endMarker) {
-    endIndex = text.indexOf(endMarker, startIndex);
-    if (endIndex === -1) endIndex = text.length;
-  } else {
-    endIndex = text.length;
-  }
-  
-  return text.substring(startIndex, endIndex).trim();
-}
-
-// Przykład użycia w funkcji analyzeData
-async function analyzeData(patientData) {
-  try {
-    // 1. Utwórz prompt
-    const prompt = await createPerplexityPrompt(patientData);
-    
-    // 2. Wywołaj API Perplexity
-    const apiResponse = await callPerplexityAPI(prompt);
-    
-    // 3. Przetwórz odpowiedź
-    const parsedSections = parsePerplexityResponse(apiResponse);
-    
-    // 4. Przygotuj dane do wyświetlenia w interfejsie
-    return {
-      summary: parsedSections.diagnosis,
-      recommendations: parsedSections.treatmentRecommendations + "\n\n" + parsedSections.pharmacotherapy,
-      riskFactors: parsedSections.differentialDiagnosis,
-      additionalTests: parsedSections.furtherSteps
-    };
-  } catch (error) {
-    console.error("Błąd podczas analizy danych:", error);
-    throw error;
-  }
-}
-                
-                /* Perplexity API integration would look something like this:
-                
+                return prompt;
+            }
+            
+            // Function to call Perplexity API
+            async function callPerplexityAPI(prompt) {
                 try {
-                    const response = await fetch('https://api.perplexity.ai/analyze', {
+                    const options = {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer YOUR_API_KEY'
+                            'Authorization': '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', // Replace with your actual API key
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            patient_data: data
+                            model: "sonar-reasoning", // You can change to a different model if needed
+                            messages: [
+                                {
+                                    role: "system",
+                                    content: "Jesteś asystentem medycznym. Odpowiadaj w określonym formacie z wyraźnymi sekcjami. Bądź precyzyjny i zwięzły."
+                                },
+                                {
+                                    role: "user",
+                                    content: prompt
+                                }
+                            ]
                         })
-                    });
+                    };
+
+                    const response = await fetch('https://api.perplexity.ai/chat/completions', options);
                     
                     if (!response.ok) {
-                        throw new Error('API response was not ok');
+                        throw new Error('API response error: ' + response.status);
                     }
                     
-                    return await response.json();
+                    const data = await response.json();
+                    
+                    // Typical Perplexity response structure contains a "choices" field
+                    if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                        return { text: data.choices[0].message.content };
+                    } else {
+                        throw new Error('Unexpected API response format');
+                    }
                 } catch (error) {
                     console.error('Error calling Perplexity API:', error);
                     throw error;
                 }
-                */
+            }
+            
+            // Helper function to extract sections from text
+            function extractSection(text, startMarker, endMarker) {
+                let startIndex = text.indexOf(startMarker);
+                if (startIndex === -1) return "";
+                
+                startIndex += startMarker.length;
+                
+                let endIndex;
+                if (endMarker) {
+                    endIndex = text.indexOf(endMarker, startIndex);
+                    if (endIndex === -1) endIndex = text.length;
+                } else {
+                    endIndex = text.length;
+                }
+                
+                return text.substring(startIndex, endIndex).trim();
+            }
+            
+            // Function to parse Perplexity response and split into sections
+            function parsePerplexityResponse(responseData) {
+                const fullText = responseData.text || "";
+                
+                // Attempt to split response into sections
+                const sections = {
+                    diagnosis: extractSection(fullText, "DIAGNOZA:", "DIAGNOZA RÓŻNICOWA:"),
+                    differentialDiagnosis: extractSection(fullText, "DIAGNOZA RÓŻNICOWA:", "REKOMENDACJE LECZENIA:"),
+                    treatmentRecommendations: extractSection(fullText, "REKOMENDACJE LECZENIA:", "FARMAKOTERAPIA:"),
+                    pharmacotherapy: extractSection(fullText, "FARMAKOTERAPIA:", "DALSZE POSTĘPOWANIE:"),
+                    furtherSteps: extractSection(fullText, "DALSZE POSTĘPOWANIE:", null)
+                };
+                
+                return sections;
+            }
+            
+            // Main function to analyze patient data
+            async function analyzeData(patientData) {
+                try {
+                    // FOR TESTING: Return mock data instead of calling the API
+                    // Remove this block when you're ready to use the real API
+                    if (false) { // Change to false to use real API
+                        return {
+                            diagnosis: "Na podstawie przedstawionych danych, najbardziej prawdopodobna diagnoza to nadciśnienie tętnicze stopnia 1 z hipercholesterolemią.",
+                            differentialDiagnosis: "1. Nadciśnienie wtórne\n2. Izolowana hipercholesterolemia\n3. Zespół metaboliczny\n4. Stres sytuacyjny (nadciśnienie białego fartucha)",
+                            treatmentRecommendations: "Zgodnie z wytycznymi ESC/ESH 2023, w przypadku nadciśnienia stopnia 1 z umiarkowanym ryzykiem sercowo-naczyniowym zalecane są:\n1. Modyfikacja stylu życia (dieta DASH, redukcja spożycia soli, aktywność fizyczna 150 min/tydz)\n2. Farmakoterapia, jeśli modyfikacje stylu życia są nieskuteczne po 3-6 miesiącach",
+                            pharmacotherapy: "Zalecane leki pierwszego rzutu:\n1. Inhibitory ACE (np. Ramipril 5-10mg 1x dziennie) - działania niepożądane: kaszel, hiperkaliemia\n2. Statyny (np. Atorwastatyna 10-20mg wieczorem) - działania niepożądane: bóle mięśniowe, wzrost enzymów wątrobowych",
+                            furtherSteps: "1. EKG spoczynkowe\n2. Badanie dna oka\n3. Kontrola lipidogramu po 3 miesiącach\n4. Zalecany ABPM (24-godzinny pomiar ciśnienia tętniczego)"
+                        };
+                    }
+                    
+                    // 1. Create prompt
+                    const prompt = createPerplexityPrompt(patientData);
+                    
+                    // 2. Call Perplexity API
+                    const apiResponse = await callPerplexityAPI(prompt);
+                    
+                    // 3. Process response
+                    const parsedSections = parsePerplexityResponse(apiResponse);
+                    
+                    // 4. Return data for display
+                    return parsedSections;
+                } catch (error) {
+                    console.error("Error analyzing data:", error);
+                    throw error;
+                }
             }
         });
     </script>
