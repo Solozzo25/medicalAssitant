@@ -446,25 +446,30 @@
         const { age, sex, examResults, labResults } = patientData;
         
         const prompt = `
-Analiza medyczna dla pacjenta:
+Kontekst:
+Jesteś doświadczonym asystentem medycznym, specjalizującym się w analizie klinicznej, który korzysta z najnowszych wytycznych medycznych. Twoim zadaniem jest przygotowanie precyzyjnej i zwięzłej analizy medycznej na podstawie podanych danych pacjenta. Odpowiedź musi być udzielona wyłącznie w określonym poniżej formacie, bez żadnych dodatkowych komentarzy ani modyfikacji nagłówków.
+
+Dane pacjenta:
 - Wiek: ${age}
 - Płeć: ${sex}
 - Wyniki badania: ${examResults}
 - Wyniki laboratoryjne: ${labResults}
 
-Proszę o przygotowanie analizy medycznej z wyraźnym podziałem na następujące sekcje:
+Instrukcje:
+Na podstawie powyższych danych przygotuj szczegółową analizę medyczną, podzieloną na następujące sekcje. Odpowiedź musi być zgodna z poniższym formatem, w którym każdy nagłówek i zawartość pól pozostają bez zmian:
 
-1. DIAGNOZA GŁÓWNA: Najbardziej prawdopodobna diagnoza na podstawie przedstawionych danych.
+Diagnoza Główna:
+<Tutaj opisz najprawdopodobniejszą diagnozę na podstawie podanych danych>
 
-2. DIAGNOZA RÓŻNICOWA: Lista innych możliwych rozpoznań, które należy wziąć pod uwagę, uszeregowana według prawdopodobieństwa.
+Diagnoza Różnicowa:
+<Tutaj opisz alternatywne diagnozy, które należy rozważyć>
 
-3. REKOMENDACJE LECZENIA: W zależności od ustalnej diagnozy głównej wyszukaj na stronie medycznego towarzystwa naukowego wytycznych dotyczących leczenia z podaniem konkretnych wytycznych (np. w przypadku chorób serca, kardiologicznego towarzystwa naukowego).
+REKOMENDACJE LECZENIA:
+<Tutaj podaj szczegółowe zalecenia dotyczące leczenia, oparte na aktualnych wytycznych medycznych (np. wytyczne kardiologicznego towarzystwa naukowego w przypadku chorób serca)>
 
-4. FARMAKOTERAPIA: Wyszukaj charakterystykę zalecanych leków oraz przedstaw wskazania oraz przeciwwskazania
+FARMAKOTERAPIA:
+<Tutaj przedstaw charakterystykę zalecanych leków, w tym ich wskazania i przeciwwskazania>
 
-5. DALSZE POSTĘPOWANIE: Bardzo krótko przedstaw sugestie dotyczące dodatkowych badań i konsultacji specjalistycznych.
-
-Odpowiedź powinna być zwięzła, oparta na aktualnej wiedzy medycznej i zawierać odniesienia do aktualnych wytycznych.
 `;
         
         logDebug('Prompt created', prompt);
