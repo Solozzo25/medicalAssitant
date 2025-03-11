@@ -1,656 +1,444 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Medical Analysis Assistant</title>
-  <!-- Include Tailwind CSS via CDN -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-  <style>
-    /* Additional custom styles */
-    .fade-in {
-      animation: fadeIn 0.5s ease-in;
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    
-    .spinner {
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%;
-      border-top: 3px solid white;
-      width: 16px;
-      height: 16px;
-      animation: spin 1s linear infinite;
-      display: inline-block;
-      margin-right: 8px;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    .status-indicator {
-      transition: all 0.3s ease;
-    }
-  </style>
-</head>
-<body class="min-h-screen bg-gray-50 p-4 md:p-8">
-  <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
-    <div class="bg-blue-600 p-4 md:p-6">
-      <h1 class="text-xl md:text-2xl font-bold text-white">Medical Analysis Assistant</h1>
-      <p class="text-blue-100 mt-1">Input patient data to receive analysis</p>
-    </div>
-    
-    <div class="p-4 md:p-6">
-      <!-- Status Bar -->
-      <div id="status-bar" class="mb-4 hidden">
-        <div class="rounded-md bg-blue-50 p-3">
-          <div class="flex">
-            <div class="flex-shrink-0">
-              <div id="status-icon" class="h-5 w-5 text-blue-400"></div>
-            </div>
-            <div class="ml-3">
-              <h3 class="text-sm font-medium text-blue-800" id="status-title">Processing...</h3>
-              <div class="mt-1 text-sm text-blue-700">
-                <p id="status-message">Please wait while we process your request.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Debug Panel (hidden by default, can be toggled in development) -->
-      <div id="debug-panel" class="mb-4 hidden">
-        <div class="rounded-md bg-gray-50 p-3 border border-gray-200">
-          <h3 class="text-sm font-medium text-gray-700 mb-2">Debug Information</h3>
-          <div class="text-xs font-mono bg-gray-100 p-2 rounded max-h-40 overflow-auto" id="debug-output">
-            No debug information available.
-          </div>
-        </div>
-      </div>
-      
-      <!-- Form View -->
-      <div id="form-view" class="space-y-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Patient Age
-            </label>
-            <input
-              type="number"
-              id="age"
-              class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-              min="0"
-              max="120"
-            >
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Biological Sex
-            </label>
-            <select
-              id="sex"
-              class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-            >
-              <option value="">Select sex</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Examination Results
-          </label>
-          <textarea
-            id="examResults"
-            rows="3"
-            class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Enter physical examination findings, vital signs, etc."
-            required
-          ></textarea>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Laboratory Results
-          </label>
-          <textarea
-            id="labResults"
-            rows="3"
-            class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Enter lab values, imaging results, etc."
-            required
-          ></textarea>
-        </div>
-        
-        <!-- Usunięto moduł testowy -->
-        
-        <div class="flex justify-end space-x-3">
-          <button
-            id="clear-btn"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            Clear
-          </button>
-          <button
-            id="submit-btn"
-            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            Get Analysis
-          </button>
-        </div>
-      </div>
-      
-      <!-- Results View (hidden by default) -->
-      <div id="results-view" class="space-y-6 hidden">
-        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-          <h2 class="text-lg font-semibold text-blue-800 mb-2">Analysis Results</h2>
-          <div class="space-y-4">
-            <div>
-              <h3 class="text-sm font-medium text-gray-500">Diagnosis</h3>
-              <p id="summary-text" class="mt-1 text-gray-800"></p>
-            </div>
-            
-            <div>
-              <h3 class="text-sm font-medium text-gray-500">Differential Diagnosis</h3>
-              <p id="risk-factors-text" class="mt-1 text-gray-800"></p>
-            </div>
-            
-            <div>
-              <h3 class="text-sm font-medium text-gray-500">Treatment Recommendations</h3>
-              <p id="recommendations-text" class="mt-1 text-gray-800"></p>
-            </div>
-            
-            <div>
-              <h3 class="text-sm font-medium text-gray-500">Pharmacotherapy</h3>
-              <p id="pharmacotherapy-text" class="mt-1 text-gray-800"></p>
-            </div>
-            
-            <div>
-              <h3 class="text-sm font-medium text-gray-500">Further Steps</h3>
-              <p id="additional-tests-text" class="mt-1 text-gray-800"></p>
-            </div>
-          </div>
-        </div>
-        
-        <div class="flex justify-end">
-          <button
-            id="new-patient-btn"
-            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            Enter New Patient Data
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <footer class="mt-8 text-center text-gray-500 text-sm">
-    <p>© 2025 Medical Analysis Assistant. For clinical decision support only.</p>
-  </footer>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Debug mode
-      const DEBUG_MODE = true; // Set to false in production
-      
-      // Config
-      const API_CONFIG = {
-        // Store API key in environment variable or config on server
-        // This is exposed in client-side code for demonstration only
-        apiKey: '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',
-        endpoint: 'https://api.perplexity.ai/chat/completions',
-        model: 'sonar-reasoning'
-      };
-      
-      // Status Messages
-      const STATUS = {
-        IDLE: { title: 'Ready', message: 'Form is ready for input.', icon: '' },
-        VALIDATING: { title: 'Validating', message: 'Checking form data...', icon: '<div class="spinner"></div>' },
-        PREPARING: { title: 'Preparing Request', message: 'Formatting your patient data...', icon: '<div class="spinner"></div>' },
-        SENDING: { title: 'Sending Request', message: 'Connecting to analysis service...', icon: '<div class="spinner"></div>' },
-        PROCESSING: { title: 'Processing', message: 'Analyzing patient data...', icon: '<div class="spinner"></div>' },
-        PARSING: { title: 'Parsing Results', message: 'Organizing analysis results...', icon: '<div class="spinner"></div>' },
-        COMPLETE: { title: 'Complete', message: 'Analysis complete!', icon: '<svg class="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>' },
-        ERROR: { title: 'Error', message: 'An error occurred.', icon: '<svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>' }
-      };
-      
-      // DOM References
-      const formView = document.getElementById('form-view');
-      const resultsView = document.getElementById('results-view');
-      const statusBar = document.getElementById('status-bar');
-      const statusTitle = document.getElementById('status-title');
-      const statusMessage = document.getElementById('status-message');
-      const statusIcon = document.getElementById('status-icon');
-      const debugPanel = document.getElementById('debug-panel');
-      const debugOutput = document.getElementById('debug-output');
-      const submitBtn = document.getElementById('submit-btn');
-      const clearBtn = document.getElementById('clear-btn');
-      const newPatientBtn = document.getElementById('new-patient-btn');
-      
-      // Get form inputs
-      const ageInput = document.getElementById('age');
-      const sexSelect = document.getElementById('sex');
-      const examResultsTextarea = document.getElementById('examResults');
-      const labResultsTextarea = document.getElementById('labResults');
-      
-      // Get result text elements
-      const summaryText = document.getElementById('summary-text');
-      const recommendationsText = document.getElementById('recommendations-text');
-      const pharmacotherapyText = document.getElementById('pharmacotherapy-text');
-      const riskFactorsText = document.getElementById('risk-factors-text');
-      const additionalTestsText = document.getElementById('additional-tests-text');
-      
-      // Initialize debug panel
-      if (DEBUG_MODE) {
-        debugPanel.classList.remove('hidden');
-      }
-      
-      // Set initial status
-      updateStatus('IDLE');
-      
-      // Event handlers
-      submitBtn.addEventListener('click', handleSubmit);
-      clearBtn.addEventListener('click', clearForm);
-      newPatientBtn.addEventListener('click', showFormView);
-      
-      // Update status function
-      function updateStatus(statusCode, customMessage = null) {
-        const status = STATUS[statusCode];
-        if (!status) return;
-        
-        statusBar.classList.remove('hidden');
-        statusTitle.textContent = status.title;
-        statusMessage.textContent = customMessage || status.message;
-        statusIcon.innerHTML = status.icon;
-        
-        // Apply appropriate status colors
-        statusBar.className = 'mb-4 status-indicator';
-        
-        switch(statusCode) {
-          case 'ERROR':
-            statusBar.classList.add('rounded-md', 'bg-red-50', 'p-3');
-            statusTitle.className = 'text-sm font-medium text-red-800';
-            statusMessage.className = 'mt-1 text-sm text-red-700';
-            break;
-          case 'COMPLETE':
-            statusBar.classList.add('rounded-md', 'bg-green-50', 'p-3');
-            statusTitle.className = 'text-sm font-medium text-green-800';
-            statusMessage.className = 'mt-1 text-sm text-green-700';
-            break;
-          default:
-            statusBar.classList.add('rounded-md', 'bg-blue-50', 'p-3');
-            statusTitle.className = 'text-sm font-medium text-blue-800';
-            statusMessage.className = 'mt-1 text-sm text-blue-700';
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Wspomagania Diagnozy Medycznej</title>
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --primary-dark: #2563eb;
+            --green-color: #16a34a;
+            --green-dark: #15803d;
+            --red-color: #dc2626;
+            --purple-color: #7e22ce;
+            --gray-light: #f9fafb;
+            --gray-medium: #e5e7eb;
+            --gray-dark: #374151;
         }
         
-        // Log to debug panel
-        logDebug(`Status updated: ${statusCode} - ${status.title}: ${customMessage || status.message}`);
-      }
-      
-      // Debug logging function
-      function logDebug(message, data = null) {
-        if (!DEBUG_MODE) return;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
         
-        const timestamp = new Date().toLocaleTimeString();
-        let logMessage = `[${timestamp}] ${message}`;
+        body {
+            background-color: var(--gray-light);
+            padding: 1.5rem;
+            min-height: 100vh;
+        }
         
-        if (data) {
-          try {
-            if (typeof data === 'object') {
-              logMessage += '\n' + JSON.stringify(data, null, 2);
-            } else {
-              logMessage += '\n' + data;
+        .container {
+            max-width: 1024px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+        
+        .header {
+            background-color: var(--primary-color);
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .form-container {
+            padding: 1.5rem;
+        }
+        
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--gray-dark);
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--gray-medium);
+            border-radius: 0.25rem;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+        
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.25rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        button:focus {
+            outline: none;
+        }
+        
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .btn-success {
+            background-color: var(--green-color);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: var(--green-dark);
+        }
+        
+        .btn-secondary {
+            background-color: #4b5563;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #374151;
+        }
+        
+        .results-container {
+            display: none;
+            padding: 1.5rem;
+            background-color: var(--gray-light);
+            border-top: 1px solid var(--gray-medium);
+        }
+        
+        .results-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--gray-dark);
+            margin-bottom: 1rem;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .result-card {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 0.25rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .result-card h3 {
+            margin-bottom: 0.5rem;
+        }
+        
+        .main-diagnosis h3 {
+            color: var(--primary-color);
+        }
+        
+        .differential-diagnosis h3 {
+            color: var(--purple-color);
+        }
+        
+        .treatment h3 {
+            color: var(--green-color);
+        }
+        
+        .pharmacology h3 {
+            color: var(--red-color);
+        }
+        
+        .error-message {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background-color: #fee2e2;
+            color: #b91c1c;
+            border-radius: 0.25rem;
+            display: none;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            margin-right: 0.5rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
             }
-          } catch (e) {
-            logMessage += '\n[Error stringifying data]';
-          }
         }
         
-        const logEntry = document.createElement('div');
-        logEntry.className = 'mb-2 pb-2 border-b border-gray-200';
-        logEntry.textContent = logMessage;
-        
-        // Keep only the last 10 log entries
-        if (debugOutput.childNodes.length >= 10) {
-          debugOutput.removeChild(debugOutput.firstChild);
+        .footer {
+            padding: 1rem;
+            background-color: var(--gray-light);
+            border-top: 1px solid var(--gray-medium);
+            text-align: center;
+            font-size: 0.875rem;
+            color: #6b7280;
         }
         
-        debugOutput.appendChild(logEntry);
-        debugOutput.scrollTop = debugOutput.scrollHeight;
-        
-        // Also log to console
-        console.log(logMessage);
-        if (data) console.log(data);
-      }
-      
-      function handleSubmit() {
-        updateStatus('VALIDATING');
-        
-        // Form validation
-        if (!validateForm()) {
-          updateStatus('ERROR', 'Please fill in all required fields.');
-          return;
+        .btn-container {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
         }
         
-        // Show loading state
-        const originalButtonText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<div class="spinner"></div> Analyzing...';
-        submitBtn.disabled = true;
-        
-        // Get form data
-        const formData = {
-          age: ageInput.value,
-          sex: sexSelect.value,
-          examResults: examResultsTextarea.value,
-          labResults: labResultsTextarea.value
-        };
-        
-        logDebug('Form data collected', formData);
-        
-        // Call analysis function
-        analyzeData(formData)
-          .then(results => {
-            logDebug('Analysis results received', results);
-            updateStatus('PARSING');
-            displayResults(results);
-            updateStatus('COMPLETE');
-            showResultsView();
-          })
-          .catch(error => {
-            updateStatus('ERROR', error.message || 'Failed to analyze data. Please try again.');
-            logDebug('Error during analysis', error);
-          })
-          .finally(() => {
-            // Reset button state
-            submitBtn.innerHTML = originalButtonText;
-            submitBtn.disabled = false;
-          });
-      }
-      
-      function validateForm() {
-        if (!ageInput.value) {
-          ageInput.focus();
-          return false;
+        /* Responsywność */
+        @media (max-width: 768px) {
+            .form-row {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .form-group {
+                min-width: 100%;
+            }
+            
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
         }
         
-        if (!sexSelect.value) {
-          sexSelect.focus();
-          return false;
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+            }
+            
+            .button-container,
+            .btn-container {
+                display: none;
+            }
         }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>System Wspomagania Diagnozy Medycznej</h1>
+        </div>
         
-        if (!examResultsTextarea.value) {
-          examResultsTextarea.focus();
-          return false;
-        }
+        <div class="form-container">
+            <form id="medicalForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="age">Wiek pacjenta</label>
+                        <input type="number" id="age" name="age" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="sex">Płeć pacjenta</label>
+                        <select id="sex" name="sex" required>
+                            <option value="mężczyzna">Mężczyzna</option>
+                            <option value="kobieta">Kobieta</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="symptoms">Objawy podmiotowe (wywiad)</label>
+                    <textarea id="symptoms" name="symptoms" placeholder="Wprowadź informacje z wywiadu lekarskiego..." required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="physicalExam">Badanie przedmiotowe</label>
+                    <textarea id="physicalExam" name="physicalExam" placeholder="Wprowadź wyniki badania przedmiotowego..." required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="additionalTests">Badania dodatkowe</label>
+                    <textarea id="additionalTests" name="additionalTests" placeholder="Wprowadź wyniki badań laboratoryjnych i dodatkowych..." required></textarea>
+                </div>
+                
+                <div class="button-container">
+                    <button type="submit" id="analyzeBtn" class="btn-success">Analizuj dane pacjenta</button>
+                </div>
+                
+                <div class="error-message" id="errorMessage"></div>
+            </form>
+        </div>
         
-        if (!labResultsTextarea.value) {
-          labResultsTextarea.focus();
-          return false;
-        }
+        <div class="results-container" id="resultsContainer">
+            <h2 class="results-title">Wyniki analizy</h2>
+            
+            <div class="results-grid">
+                <div class="result-card main-diagnosis">
+                    <h3>Diagnoza główna</h3>
+                    <p id="mainDiagnosis"></p>
+                </div>
+                
+                <div class="result-card differential-diagnosis">
+                    <h3>Diagnoza różnicowa</h3>
+                    <p id="differentialDiagnosis"></p>
+                </div>
+            </div>
+            
+            <div class="results-grid">
+                <div class="result-card treatment">
+                    <h3>Rekomendacje leczenia</h3>
+                    <p id="treatmentRecommendations"></p>
+                </div>
+                
+                <div class="result-card pharmacology">
+                    <h3>Farmakologia</h3>
+                    <p id="pharmacology"></p>
+                </div>
+            </div>
+            
+            <div class="btn-container">
+                <button id="resetBtn" class="btn-primary">Wprowadź nowe dane</button>
+                <button id="printBtn" class="btn-secondary">Drukuj raport</button>
+            </div>
+        </div>
         
-        return true;
-      }
-      
-      function clearForm() {
-        ageInput.value = '';
-        sexSelect.value = '';
-        examResultsTextarea.value = '';
-        labResultsTextarea.value = '';
-        updateStatus('IDLE');
-      }
-      
-      function showFormView() {
-        resultsView.classList.add('hidden');
-        formView.classList.remove('hidden');
-        updateStatus('IDLE');
-        clearForm();
-      }
-      
-      function showResultsView() {
-        formView.classList.add('hidden');
-        resultsView.classList.remove('hidden');
-        resultsView.classList.add('fade-in');
-        setTimeout(() => {
-          resultsView.classList.remove('fade-in');
-        }, 500);
-      }
-      
-      function displayResults(results) {
-        // Format text for display (replacing line breaks with <br> tags)
-        const formatText = (text) => {
-          return text.replace(/\n/g, '<br>');
-        };
-        
-        // Set results with HTML for proper formatting
-        summaryText.innerHTML = formatText(results.diagnosis || "");
-        riskFactorsText.innerHTML = formatText(results.differentialDiagnosis || "");
-        recommendationsText.innerHTML = formatText(results.treatmentRecommendations || "");
-        pharmacotherapyText.innerHTML = formatText(results.pharmacotherapy || "");
-        additionalTestsText.innerHTML = formatText(results.furtherSteps || "");
-      }
-      
-      // Function to create structured prompt for Perplexity
-      function createPerplexityPrompt(patientData) {
-        updateStatus('PREPARING');
-        
-        const { age, sex, examResults, labResults } = patientData;
-        
-        const prompt = `
-Kontekst:
-Jesteś doświadczonym asystentem medycznym, specjalizującym się w analizie klinicznej, który korzysta z najnowszych wytycznych medycznych. Twoim zadaniem jest przygotowanie precyzyjnej i zwięzłej analizy medycznej na podstawie podanych danych pacjenta. Odpowiedź musi być udzielona wyłącznie w określonym poniżej formacie, bez żadnych dodatkowych komentarzy ani modyfikacji nagłówków.
-
-Dane pacjenta:
-- Wiek: ${age}
-- Płeć: ${sex}
-- Wyniki badania: ${examResults}
-- Wyniki laboratoryjne: ${labResults}
-
-Instrukcje:
-Na podstawie powyższych danych przygotuj szczegółową analizę medyczną, podzieloną na następujące sekcje. Odpowiedź musi być zgodna z poniższym formatem, w którym każdy nagłówek i zawartość pól pozostają bez zmian:
-
-Diagnoza Główna:
-<Tutaj opisz najprawdopodobniejszą diagnozę na podstawie podanych danych>
-
-Diagnoza Różnicowa:
-<Tutaj opisz alternatywne diagnozy, które należy rozważyć>
-
-REKOMENDACJE LECZENIA:
-<Tutaj podaj szczegółowe zalecenia dotyczące leczenia, oparte na aktualnych wytycznych medycznych (np. wytyczne kardiologicznego towarzystwa naukowego w przypadku chorób serca)>
-
-FARMAKOTERAPIA:
-<Tutaj przedstaw charakterystykę zalecanych leków, w tym ich wskazania i przeciwwskazania>
-
-`;
-        
-        logDebug('Prompt created', prompt);
-        return prompt;
-      }
-      
-      // Function to call Perplexity API
-      async function callPerplexityAPI(prompt) {
-        updateStatus('SENDING');
-        
-        try {
-          const options = {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${API_CONFIG.apiKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: API_CONFIG.model,
-              messages: [
-                {
-                  role: "system",
-                  content: "Jesteś asystentem medycznym. Odpowiadaj w określonym formacie z wyraźnymi sekcjami. Bądź precyzyjny i zwięzły."
+        <div class="footer">
+            System do wspomagania diagnostyki medycznej © 2025
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const medicalForm = document.getElementById('medicalForm');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const printBtn = document.getElementById('printBtn');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            // Obsługa formularza
+            medicalForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Pobierz dane formularza
+                const patientData = {
+                    age: document.getElementById('age').value,
+                    sex: document.getElementById('sex').value,
+                    symptoms: document.getElementById('symptoms').value,
+                    physicalExam: document.getElementById('physicalExam').value,
+                    additionalTests: document.getElementById('additionalTests').value
+                };
+                
+                // Dodaj animację ładowania
+                analyzeBtn.disabled = true;
+                analyzeBtn.innerHTML = '<span class="loading"></span>Analizowanie...';
+                errorMessage.style.display = 'none';
+                
+            // Rzeczywiste wywołanie API do funkcji Netlify
+            fetch('/api/analyze-patient', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
                 },
-                {
-                  role: "user",
-                  content: prompt
-                }
-              ]
+                body: JSON.stringify(patientData)
             })
-          };
-          
-          logDebug('API request prepared', options);
-          updateStatus('SENDING', 'Connecting to API...');
-          
-          const response = await fetch(API_CONFIG.endpoint, options);
-          logDebug('API response received', {
-            status: response.status,
-            statusText: response.statusText
-          });
-          
-          if (!response.ok) {
-            updateStatus('ERROR', `API responded with error: ${response.status} ${response.statusText}`);
-            throw new Error(`API responded with error: ${response.status} ${response.statusText}`);
-          }
-          
-          updateStatus('PROCESSING', 'Parsing API response...');
-          const data = await response.json();
-          logDebug('API response data', data);
-          
-          // Typical Perplexity response structure contains a "choices" field
-          if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-            updateStatus('PROCESSING', 'Processing analysis results...');
-            return { text: data.choices[0].message.content };
-          } else {
-            updateStatus('ERROR', 'Unexpected API response format');
-            throw new Error('Unexpected API response format');
-          }
-        } catch (error) {
-          const errorMessage = error.message || 'Error connecting to analysis service';
-          updateStatus('ERROR', errorMessage);
-          logDebug('Error calling API', error);
-          throw error;
-        }
-      }
-      
-      // Helper function to extract sections from text with improved robustness
-      function extractSection(text, sectionName) {
-        logDebug(`Extracting section: ${sectionName}`);
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Błąd serwera: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Wypełnij wyniki analizy
+                document.getElementById('mainDiagnosis').textContent = data.Diagnoza_Główna;
+                document.getElementById('differentialDiagnosis').textContent = data.Diagnoza_Różnicowa;
+                document.getElementById('treatmentRecommendations').textContent = "Zaleca się konsultację z lekarzem specjalistą z " + data.Towarzystwo_Medyczne;
+                document.getElementById('pharmacology').textContent = "Zalecenia farmakologiczne zostaną ustalone po konsultacji.";
+                
+                // Pokaż sekcję wyników
+                resultsContainer.style.display = 'block';
+                // Schowaj przycisk analizuj
+                analyzeBtn.style.display = 'none';
+            })
+            .catch(error => {
+                // Obsługa błędów
+                errorMessage.textContent = 'Wystąpił błąd podczas analizy danych: ' + error.message;
+                errorMessage.style.display = 'block';
+            })
+            .finally(() => {
+                // Przywróć przycisk
+                analyzeBtn.disabled = false;
+                analyzeBtn.innerHTML = 'Analizuj dane pacjenta';
+            });
+            
+            // Obsługa przycisku resetowania
+            resetBtn.addEventListener('click', function() {
+                // Schowaj wyniki
+                resultsContainer.style.display = 'none';
+                // Pokaż przycisk analizuj
+                analyzeBtn.style.display = 'block';
+                // Wyczyść pola błędów
+                errorMessage.style.display = 'none';
+                // Pozostaw dane formularza bez zmiany
+            });
+            
+            // Obsługa przycisku drukowania
+            printBtn.addEventListener('click', function() {
+                window.print();
+            });
+        });
+
         
-        // Define possible markers for each section
-        const markers = {
-          "diagnosis": ["DIAGNOZA GŁÓWNA:", "DIAGNOZA:"],
-          "differentialDiagnosis": ["DIAGNOZA RÓŻNICOWA:"],
-          "treatmentRecommendations": ["REKOMENDACJE LECZENIA:"],
-          "pharmacotherapy": ["FARMAKOTERAPIA:"],
-          "furtherSteps": ["DALSZE POSTĘPOWANIE:"]
-        };
-        
-        // Define section endings
-        const endMarkers = {
-          "diagnosis": ["DIAGNOZA RÓŻNICOWA:", "2."],
-          "differentialDiagnosis": ["REKOMENDACJE LECZENIA:", "3."],
-          "treatmentRecommendations": ["FARMAKOTERAPIA:", "4."],
-          "pharmacotherapy": ["DALSZE POSTĘPOWANIE:", "5."],
-          "furtherSteps": []  // Last section, no end marker
-        };
-        
-        const possibleMarkers = markers[sectionName] || [];
-        const possibleEndMarkers = endMarkers[sectionName] || [];
-        
-        if (!possibleMarkers.length) {
-          logDebug(`No markers defined for section: ${sectionName}`);
-          return "";
-        }
-        
-        // Try each possible marker
-        let startIndex = -1;
-        let startMarker = "";
-        
-        for (const marker of possibleMarkers) {
-          startIndex = text.indexOf(marker);
-          if (startIndex !== -1) {
-            startMarker = marker;
-            break;
-          }
-        }
-        
-        if (startIndex === -1) {
-          logDebug(`Section not found: ${sectionName}`);
-          return "";
-        }
-        
-        startIndex += startMarker.length;
-        
-        // Try each possible end marker
-        let endIndex = text.length;
-        
-        for (const endMarker of possibleEndMarkers) {
-          const tempEndIndex = text.indexOf(endMarker, startIndex);
-          if (tempEndIndex !== -1 && tempEndIndex < endIndex) {
-            endIndex = tempEndIndex;
-          }
-        }
-        
-        const result = text.substring(startIndex, endIndex).trim();
-        logDebug(`Extracted ${sectionName}: ${result.substring(0, 50)}...`);
-        return result;
-      }
-      
-      // Function to parse Perplexity response and split into sections
-      function parsePerplexityResponse(responseData) {
-        updateStatus('PARSING');
-        
-        const fullText = responseData.text || "";
-        logDebug('Parsing response text', fullText);
-        
-        // Attempt to split response into sections
-        const sections = {
-          diagnosis: extractSection(fullText, "diagnosis"),
-          differentialDiagnosis: extractSection(fullText, "differentialDiagnosis"),
-          treatmentRecommendations: extractSection(fullText, "treatmentRecommendations"),
-          pharmacotherapy: extractSection(fullText, "pharmacotherapy"),
-          furtherSteps: extractSection(fullText, "furtherSteps")
-        };
-        
-        // Check if sections are empty and attempt to extract by number format
-        if (!sections.diagnosis && !sections.differentialDiagnosis) {
-          logDebug('Fallback: attempting extraction by numeric section format');
-          
-          // Try extracting by numeric sections (1., 2., etc)
-          const numericPattern = /\d\.\s+(.*?)(?=\d\.\s+|$)/gs;
-          const matches = [...fullText.matchAll(numericPattern)];
-          
-          if (matches.length >= 5) {
-            sections.diagnosis = matches[0][1].trim();
-            sections.differentialDiagnosis = matches[1][1].trim();
-            sections.treatmentRecommendations = matches[2][1].trim();
-            sections.pharmacotherapy = matches[3][1].trim();
-            sections.furtherSteps = matches[4][1].trim();
-          }
-        }
-        
-        logDebug('Parsed sections', sections);
-        return sections;
-      }
-      
-      // Main function to analyze patient data
-      async function analyzeData(patientData) {
-        try {
-          const prompt = createPerplexityPrompt(patientData);
-          const responseData = await callPerplexityAPI(prompt);
-          const sections = parsePerplexityResponse(responseData);
-          return sections;
-        } catch (error) {
-          throw error;
-        }
-      }
-      
-    });
-  </script>
+    </script>
 </body>
 </html>
 
