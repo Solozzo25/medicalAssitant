@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Pobierz rekomendacje leczenia - przekazujemy tylko diagnozę i towarzystwo medyczne
         const treatmentRequestData = {
-          diagnosis: diagnosisResponse.Diagnoza,
+          diagnosis: diagnosisResponse.Diagnoza_Główna,
           medicalSociety: diagnosisResponse.Towarzystwo_Medyczne
         };
         
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </h3>
       <div class="result-item">
         <h4 class="result-item-title">
-          ${data.Diagnoza} <span class="confidence high">Główna diagnoza</span>
+          ${data.Diagnoza_Główna} <span class="confidence high">Główna diagnoza</span>
         </h4>
         <p class="result-item-description">
           <strong>Uzasadnienie:</strong> ${data.Uzasadnienie_Diagnozy}
@@ -107,31 +107,12 @@ document.addEventListener('DOMContentLoaded', function() {
       <h3 class="result-card-title">
         <i>🧩</i> Diagnostyka różnicowa
       </h3>
-    `;
-    
-    // Dodaj poszczególne diagnozy różnicowe
-    const differentialDiagnoses = data.Diagnoza_Różnicowa.split(',');
-    differentialDiagnoses.forEach((diagnosis, index) => {
-      if (diagnosis.trim()) {
-        differentialSection.innerHTML += `
-          <div class="result-item">
-            <h4 class="result-item-title">
-              ${diagnosis.trim()} 
-              <span class="confidence ${index === 0 ? 'medium' : 'low'}">
-                ${index === 0 ? 'Wysokie prawdopodobieństwo' : 'Rozważ'}
-              </span>
-            </h4>
-          </div>
-        `;
-      }
-    });
-    
-    // Dodaj uzasadnienie diagnozy różnicowej
-    differentialSection.innerHTML += `
-      <div class="result-item" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-        <h4 class="result-item-title">Uzasadnienie diagnozy różnicowej</h4>
+      <div class="result-item">
+        <h4 class="result-item-title">
+          ${data.Diagnoza_Różnicowa} <span class="confidence medium">Diagnoza różnicowa</span>
+        </h4>
         <p class="result-item-description">
-          ${data.Uzasadnienie_Różnicowe}
+          <strong>Uzasadnienie:</strong> ${data.Uzasadnienie_Różnicowe}
         </p>
       </div>
     `;
@@ -164,19 +145,11 @@ document.addEventListener('DOMContentLoaded', function() {
         </ul>
       </div>
       <div class="result-item">
-        <h4 class="result-item-title">Zalecenia dodatkowe</h4>
+        <h4 class="result-item-title">Zalecenia niefarmakologiczne</h4>
         <ul>
           ${Array.isArray(data.Zalecenia_Niefarmakologiczne) 
             ? data.Zalecenia_Niefarmakologiczne.map(item => `<li>${item}</li>`).join('')
             : `<li>${data.Zalecenia_Niefarmakologiczne}</li>`}
-        </ul>
-      </div>
-      <div class="result-item">
-        <h4 class="result-item-title">Kontrola i monitorowanie</h4>
-        <ul>
-          ${Array.isArray(data.Kontrola_i_Monitorowanie) 
-            ? data.Kontrola_i_Monitorowanie.map(item => `<li>${item}</li>`).join('')
-            : `<li>${data.Kontrola_i_Monitorowanie}</li>`}
         </ul>
       </div>
     `;
@@ -192,7 +165,6 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="result-item">
         <h4 class="result-item-title">${drug.Nazwa}</h4>
         <ul>
-          <li><strong>Mechanizm działania:</strong> ${drug.Mechanizm_Działania}</li>
           <li><strong>Wskazania:</strong> 
             ${Array.isArray(drug.Wskazania) 
               ? drug.Wskazania.join(', ')
@@ -202,11 +174,6 @@ document.addEventListener('DOMContentLoaded', function() {
             ${Array.isArray(drug.Przeciwwskazania) 
               ? drug.Przeciwwskazania.join(', ')
               : drug.Przeciwwskazania}
-          </li>
-          <li><strong>Działania niepożądane:</strong> 
-            ${Array.isArray(drug.Działania_Niepożądane) 
-              ? drug.Działania_Niepożądane.join(', ')
-              : drug.Działania_Niepożądane}
           </li>
           <li><strong>Interakcje:</strong> 
             ${Array.isArray(drug.Interakcje) 
