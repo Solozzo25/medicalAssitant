@@ -81,7 +81,7 @@ exports.handler = async function(event, context) {
       {
         model: "llama-3-sonar-small-32k", // lub inny model Perplexity AI
         messages: [
-          { role: "system", content: "Jesteś ekspertem w dziedzinie medycyny, specjalizującym się w leczeniu chorób na podstawie najnowszych wytycznych klinicznych." },
+          { role: "system", content: " Działasz jako ekspert medyczny, którego zadaniem jest wyszukiwanie rekomendacji leczenia na stronach towarzystw medycznych lub artykułów redakcji medycznych." },
           { role: "user", content: prompt }
         ],
         temperature: 0.1, // Niska temperatura dla precyzyjnych odpowiedzi medycznych
