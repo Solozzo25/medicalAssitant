@@ -1,7 +1,13 @@
-[functions]
-  directory = "functions"
+[build]
+  publish = "dist"
+  command = "npm run build"
+  functions = "netlify/functions"
 
+[dev]
+  publish = "dist"
+  functions = "netlify/functions"
+  
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/*"
+  to = "/index.html"
   status = 200
