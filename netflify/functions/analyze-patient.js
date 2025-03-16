@@ -45,7 +45,8 @@ exports.handler = async function(event, context) {
     const userPrompt = `
       Twoim zadaniem jest postawienie precyzyjnej diagnozy na podstawie podanych danych pacjenta oraz badań. Do diagnozy przedstaw zwięzłe kilku zdaniowe uzasadnienie, dlaczego taką diagnozę wybrałeś. Dodatkowo chciałbym, abyś postawił również diagnozę różnicową również z kilku zdaniowym uzasadnieniem. Ostatnim zadaniem będzie wskazanie, do jakiego medycznego towarzystwa naukowego skierowałbyś się po zalecenia po zindentyfikowaniu chorob/schorzenia. Masz jedynie podać nazwę np. Polskie Towarzystwko Kardologiczne. Interesują mnie tylko polskie organizacje.
       
-      Dane pacjenta:
+      
+      Dane pacjenta, na podstawie których musisz postawic diagnozę:
       - Wiek: ${age}
       - Płeć: ${sex}
       - Wyniki podmiotowe (wywiad lekarski): ${symptoms}
@@ -53,12 +54,10 @@ exports.handler = async function(event, context) {
       - Wyniki laboratoryjne: ${additionalTests || 'Brak danych'}
       ${medicalHistory ? `- Historia medyczna: ${medicalHistory}` : ''}
       
-      Format odpowiedzi ma być formatem JSON powinien zawierać 5 sekcji, jak w pożniszym formacie, bez żadnych dodatkowych komentarzy ani modyfikacji nagłówków.
+      Format odpowiedzi ma być formatem JSON powinien zawierać 3 sekcje, jak w pożniszym formacie, bez żadnych dodatkowych komentarzy ani modyfikacji nagłówków.
       {
-          "Diagnoza_Główna": "Tutaj podaj najprawdopodobniejszą diagnozę na podstawie podanych danych. To pole ma zawierać tylko jedną nazwę choroby/schorzenia",
-          "Uzasadnienie_Diagnozy": "Tutaj podaj krótkie i zwięzłe uzasdanienie postawionej diagnozy"
-          "Diagnoza_Różnicowa": "Tutaj przedstaw najbardziej prawdopodobną diagnozę różnicowa.  To pole ma zawierać tylko jedną nazwę choroby/schorzenia",
-          "Uzasadnienie_Różnicowe": "Tutaj podaj krótkie i zwięzłe uzasdanienie postawionej diagnozy rożnicowej"
+          "Diagnoza_Główna": "Tutaj opisz najprawdopodobniejszą diagnozę na podstawie podanych danych",
+          "Diagnoza_Różnicowa": "Tutaj opisz alternatywne diagnozy, które należy rozważyć",
           "Towarzystwo_Medyczne": "Tylko nazwa stowarzyszenia"
       }`;
 
@@ -105,7 +104,7 @@ exports.handler = async function(event, context) {
     }
 
     // Sprawdzenie czy JSON zawiera wymagane pola
-    if (!parsedResponse.Diagnoza || !parsedResponse.Uzasadnienie_Diagnozy || 
+    if (!parsedResponse.Diagnoza_Główna || !parsedResponse.Uzasadnienie_Diagnozy || 
         !parsedResponse.Diagnoza_Różnicowa || !parsedResponse.Uzasadnienie_Różnicowe || 
         !parsedResponse.Towarzystwo_Medyczne) {
       return {
