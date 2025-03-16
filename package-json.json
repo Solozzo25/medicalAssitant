@@ -1,0 +1,17 @@
+{
+  "name": "med-diagnosis-app",
+  "version": "1.0.0",
+  "description": "Aplikacja diagnostyczna dla lekarzy wykorzystująca technologie AI",
+  "main": "index.js",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "npm run build:dir",
+    "build:dir": "mkdir -p dist && cp -r index.html js dist/"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.3.0"
+  }
+}
