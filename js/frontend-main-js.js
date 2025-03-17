@@ -38,6 +38,9 @@ document.addEventListener('DOMContentLoaded', function() {
       // Pokaż loading spinner
       loadingIndicator.style.display = 'block';
       
+      // Ukryj wcześniejsze błędy, jeśli istnieją
+      document.querySelectorAll('.error-message').forEach(el => el.remove());
+      
       // Zbierz dane z formularza
       const formData = {
         age: document.getElementById('age').value,
@@ -48,12 +51,24 @@ document.addEventListener('DOMContentLoaded', function() {
         medicalHistory: document.getElementById('history').value
       };
       
+      console.log("📋 Wysyłanie danych pacjenta:", {
+        age: formData.age,
+        sex: formData.sex,
+        symptoms_length: formData.symptoms.length
+      });
+      
       // Zachowaj dane pacjenta
       currentPatientData = formData;
       
       try {
+        console.log("🔄 Pobieranie diagnozy od GPT...");
         // Pobierz diagnozę
         const diagnosisResponse = await getDiagnosis(formData);
+        console.log("✅ Otrzymano odpowiedź z diagnozy:", {
+          diagnoza_główna: diagnosisResponse.Diagnoza_Główna,
+          towarzystwo: diagnosisResponse.Towarzystwo_Medyczne
+        });
+        
         currentDiagnosisData = diagnosisResponse;
         
         // Pokaż wyniki diagnozy
@@ -65,7 +80,10 @@ document.addEventListener('DOMContentLoaded', function() {
           medicalSociety: diagnosisResponse.Towarzystwo_Medyczne
         };
         
+        console.log("🔄 Pobieranie rekomendacji leczenia od Perplexity...");
         const treatmentResponse = await getTreatmentRecommendations(treatmentRequestData);
+        console.log("✅ Otrzymano odpowiedź z rekomendacjami leczenia");
+        
         currentTreatmentData = treatmentResponse;
         
         // Pokaż wyniki leczenia
@@ -74,7 +92,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Przejdź do zakładki wyników
         document.querySelector('[data-tab="results"]').click();
       } catch (error) {
-        console.error('Błąd:', error);
+        console.error('❌ Błąd podczas przetwarzania:', error);
+        console.log("❌ Szczegóły błędu:", error.toString());
         showError(error.message || 'Wystąpił nieoczekiwany błąd podczas przetwarzania zapytania.');
       } finally {
         // Ukryj loading spinner
