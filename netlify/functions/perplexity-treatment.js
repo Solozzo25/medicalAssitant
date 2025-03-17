@@ -53,37 +53,29 @@ exports.handler = async function(event, context) {
 
     // Przygotowanie promptu do Perplexity
     const prompt = `
-      Działasz jako ekspert medyczny specjalizujący się w leczeniu chorób, opierający się na oficjalnych wytycznych medycznych.
-      
-      Wyszukaj aktualne, oficjalne rekomendacje leczenia dla następującej diagnozy: "${diagnosis}".
-      Te rekomendacje powinny być zgodne z wytycznymi następującego towarzystwa naukowego: "${medicalSociety}".
-      
+      Dla następującej diagnozy: "${diagnosis}", chcę abyś znalazł w materiałach tylko i wyłącznie "${medicalSociety}" jakie są wytyczne oraz rekomendacje leczenia takiej choroby. Podziel odpowiedź na dwie sekcje - farmakologiczne i niefarmalogiczne. Wyszukaj charakterystykę kluczowego leku zalecanego w terapii, bazując na OFICJALNEJ, RZĄDOWEJ charakterystyce produktu leczniczego (np. z URPL, EMA lub innego oficjalnego źródła) oraz wyekstraktuj informacje dotyczące: Wskazań oraz przeciwskazań
+Interakcje z innymi lekami.
+     
       Twoja odpowiedź musi zawierać:
-      1. Szczegółową farmakoterapię według oficjalnych wytycznych: nazwy leków, dawkowanie, czas leczenia
+      1. Szczegółową farmakoterapię według oficjalnych wytycznych: nazwę produktu leczniczego, dawkowanie, czas leczenia
       2. Zalecenia niefarmakologiczne rekomendowane przez towarzystwo
-      3. Oficjalne zalecenia dotyczące kontroli i dalszego postępowania
-      4. Charakterystykę kluczowego leku zalecanego w terapii, bazując na OFICJALNEJ, RZĄDOWEJ charakterystyce produktu leczniczego (np. z URPL, EMA lub innego oficjalnego źródła):
-         - Mechanizm działania
-         - Wskazania rejestracyjne
-         - Przeciwwskazania
-         - Działania niepożądane (najważniejsze)
+      3. Charakterystykę kluczowego leku zalecanego w terapii, bazując na OFICJALNEJ, RZĄDOWEJ charakterystyce produktu leczniczego (np. z URPL, EMA lub innego oficjalnego źródła)
          - Interakcje z innymi lekami (najważniejsze)
-      
+         - Wskazania
+         - Przeciwwskazania
+     
       Zwróć odpowiedź w formacie JSON:
       {
-        "Farmakoterapia": [lista leków i rekomendacji],
+        "Farmakoterapia": [lista leków wraz z dawkowaniem],
         "Zalecenia_Niefarmakologiczne": [lista zaleceń],
-        "Kontrola_i_Monitorowanie": [zalecenia dotyczące dalszego postępowania],
         "Charakterystyka_Leku": {
           "Nazwa": "nazwa leku",
-          "Mechanizm_Działania": "opis z oficjalnej charakterystyki produktu",
           "Wskazania": [lista wskazań z oficjalnego źródła],
           "Przeciwwskazania": [lista przeciwwskazań z oficjalnego źródła],
-          "Działania_Niepożądane": [lista działań niepożądanych z oficjalnego źródła],
           "Interakcje": [lista interakcji z oficjalnego źródła]
         }
       }
-      
+     
       Odpowiedź musi być w języku polskim, oparta WYŁĄCZNIE na oficjalnych, aktualnych wytycznych medycznych i charakterystykach produktów leczniczych. Podaj tylko dane w formacie JSON, bez dodatkowych komentarzy.
     `;
 
@@ -181,13 +173,8 @@ exports.handler = async function(event, context) {
     }
     
     console.log("✅ Wszystkie wymagane pola są obecne, zwracanie odpowiedzi");
-    console.log("📋 Lek główny:", parsedResponse.Charakterystyka_Leku.Nazwa); 
-          data: parsedResponse 
-        }),
-        headers: { 'Content-Type': 'application/json' }
-      };
-    }
-
+    console.log("📋 Lek główny:", parsedResponse.Charakterystyka_Leku.Nazwa);
+    
     // Zwróć odpowiedź do klienta
     return {
       statusCode: 200,
