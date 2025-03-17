@@ -501,12 +501,12 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="physical" class="form-label">Badanie przedmiotowe </label>
+                        <label for="physical" class="form-label">Badanie przedmiotowe (opcjonalnie)</label>
                         <textarea id="physical" name="physical" class="form-textarea" placeholder="Wprowadź wyniki badania przedmiotowego..."></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label for="labs" class="form-label">Wyniki badań </label>
+                        <label for="labs" class="form-label">Wyniki badań (opcjonalnie)</label>
                         <textarea id="labs" name="labs" class="form-textarea" placeholder="Wprowadź wyniki badań laboratoryjnych, obrazowych i innych..."></textarea>
                     </div>
 
@@ -626,40 +626,9 @@
         </div>
     </footer>
 
-    <script>
-        // Simple tab switching functionality
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                // Remove active class from all tabs and contents
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                
-                // Add active class to clicked tab
-                tab.classList.add('active');
-                
-                // Show corresponding content
-                const tabName = tab.getAttribute('data-tab');
-                document.getElementById(tabName).classList.add('active');
-            });
-        });
-
-        // Form submission
-        document.getElementById('diagnosis-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            // Show loading spinner
-            document.querySelector('.loading').style.display = 'block';
-            
-            // Simulate API call
-            setTimeout(() => {
-                // Hide loading spinner
-                document.querySelector('.loading').style.display = 'none';
-                
-                // Switch to results tab
-                document.querySelector('[data-tab="results"]').click();
-            }, 2000);
-        });
-    </script>
+    <!-- Skrypty API i główny skrypt aplikacji -->
+    <script src="/js/api.js"></script>
+    <script src="/js/main.js"></script>
 </body>
 </html>
 
