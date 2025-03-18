@@ -3,11 +3,6 @@
   command = "npm run build"
   functions = "netlify/functions"
 
-[functions]
-  node_bundler = "esbuild"
-  external_node_modules = ["axios"]
-  # Można ustawić timeout dla wszystkich funkcji
-  timeout = 30
 
 [dev]
   publish = "dist"
