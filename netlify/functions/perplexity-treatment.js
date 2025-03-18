@@ -87,7 +87,7 @@ Interakcje z innymi lekami.
     const perplexityResponse = await axios.post(
       'https://api.perplexity.ai/chat/completions',
       {
-        model: "llama-3-sonar-small-32k", // lub inny model Perplexity AI
+        model: "sonar-reasoning", // lub inny model Perplexity AI
         messages: [
           { role: "system", content: "Jesteś ekspertem w dziedzinie medycyny, specjalizującym się w leczeniu chorób na podstawie najnowszych wytycznych klinicznych." },
           { role: "user", content: prompt }
