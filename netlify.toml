@@ -11,3 +11,6 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+[functions]
+  timeout = 30 # Zwiększ limit czasu do 30 sekund
