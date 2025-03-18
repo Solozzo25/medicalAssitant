@@ -71,8 +71,10 @@ exports.handler = async function(event, context) {
       
       Format odpowiedzi ma być formatem JSON powinien zawierać 3 sekcje, jak w pożniszym formacie, bez żadnych dodatkowych komentarzy ani modyfikacji nagłówków.
       {
-          "Diagnoza_Główna": "Tutaj opisz najprawdopodobniejszą diagnozę na podstawie podanych danych",
-          "Diagnoza_Różnicowa": "Tutaj opisz alternatywne diagnozy, które należy rozważyć",
+          "Diagnoza_Główna": "Tutaj podaj najprawdopodobniejszą diagnozę główną na podstawie podanych danych",
+          "Uzasadnienie_Diagnozy": "Tutaj opisz uzasadnienie dla diagnozy głównej",             
+          "Diagnoza_Różnicowa": "Tutaj podaj najprawdopodobniejszą diagnozę różnicową na podstawie podanych danychę",
+          "Uzasadnienie_Różnicowe": "Tutaj opisz uzasadnienie dla diagnozy różnicowej", 
           "Towarzystwo_Medyczne": "Tylko nazwa stowarzyszenia"
       }`;
 
