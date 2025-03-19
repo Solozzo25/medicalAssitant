@@ -1,5 +1,5 @@
 // api/perplexity-treatment.js
-const axios = require('axios');
+import axios from 'axios';
 
 export default async function handler(req, res) {
   console.log("🔄 Funkcja perplexity-treatment została wywołana");
