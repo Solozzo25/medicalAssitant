@@ -1,26 +1,20 @@
-// netlify/functions/gpt-diagnosis.js
+// api/gpt-diagnosis.js
 const axios = require('axios');
 
-exports.handler = async function(event, context) {
-  console.log("🔄 Funkcja GPT-diagnosis została wywołana");
+export default async function handler(req, res) {
+  console.log("🔄 Funkcja gpt-diagnosis została wywołana");
   
   // Sprawdzenie czy metoda to POST
-  if (event.httpMethod !== 'POST') {
-    console.log("❌ Błąd: Niewłaściwa metoda HTTP:", event.httpMethod);
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method Not Allowed' }),
-      headers: {
-        'Allow': 'POST',
-        'Content-Type': 'application/json'
-      }
-    };
+  if (req.method !== 'POST') {
+    console.log("❌ Błąd: Niewłaściwa metoda HTTP:", req.method);
+    return res.status(405).json({ 
+      error: 'Method Not Allowed' 
+    });
   }
 
   try {
     // Parsowanie danych wejściowych z formularza
-    const requestData = JSON.parse(event.body);
-    const { age, sex, symptoms, physicalExam, additionalTests, medicalHistory } = requestData;
+    const { age, sex, symptoms, physicalExam, additionalTests, medicalHistory } = req.body;
     
     console.log("📋 Dane pacjenta otrzymane:", { 
       age, 
@@ -34,23 +28,19 @@ exports.handler = async function(event, context) {
     // Sprawdzenie wymaganych pól
     if (!age || !sex || !symptoms) {
       console.log("❌ Błąd: Brakujące wymagane pola");
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Brakujące wymagane pola: wiek, płeć lub objawy podmiotowe' }),
-        headers: { 'Content-Type': 'application/json' }
-      };
+      return res.status(400).json({ 
+        error: 'Brakujące wymagane pola: wiek, płeć lub objawy podmiotowe' 
+      });
     }
 
-    // Klucz API z zmiennych środowiskowych Netlify
+    // Klucz API z zmiennych środowiskowych
     const apiKey = process.env.OPENAI_API_KEY;
     
     if (!apiKey) {
       console.log("❌ Błąd: Brak klucza API OpenAI w zmiennych środowiskowych");
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: 'Błąd konfiguracji API - brak klucza OpenAI' }),
-        headers: { 'Content-Type': 'application/json' }
-      };
+      return res.status(500).json({ 
+        error: 'Błąd konfiguracji API - brak klucza OpenAI' 
+      });
     }
     
     console.log("🔑 Klucz API OpenAI znaleziony (pierwszych 5 znaków):", apiKey.substring(0, 5) + '...');
@@ -58,6 +48,7 @@ exports.handler = async function(event, context) {
     // Przygotowanie systmowego i użytkownika promptu
     const systemPrompt = "Jesteś doświadczonym lekarzem medycznym z 20 letnim doświadczeniem w medycynie chorób wewnętrznych, który korzysta z najnowszych wytycznych medycznych.";
     
+    // Przygotowanie promptu do GPT
     const userPrompt = `
       Twoim zadaniem jest postawienie precyzyjnej diagnozy na podstawie podanych danych pacjenta oraz badań. Do diagnozy przedstaw zwięzłe kilku zdaniowe uzasadnienie, dlaczego taką diagnozę wybrałeś. Dodatkowo chciałbym, abyś postawił również diagnozę różnicową również z kilku zdaniowym uzasadnieniem. Ostatnim zadaniem będzie wskazanie, do jakiego medycznego towarzystwa naukowego skierowałbyś się po zalecenia po zindentyfikowaniu chorob/schorzenia. Masz jedynie podać nazwę np. Polskie Towarzystwko Kardologiczne. Interesują mnie tylko polskie organizacje.
       
@@ -69,12 +60,12 @@ exports.handler = async function(event, context) {
       - Wyniki laboratoryjne: ${additionalTests || 'Brak danych'}
       ${medicalHistory ? `- Historia medyczna: ${medicalHistory}` : ''}
       
-      Format odpowiedzi ma być formatem JSON powinien zawierać 3 sekcje, jak w pożniszym formacie, bez żadnych dodatkowych komentarzy ani modyfikacji nagłówków.
+      Format odpowiedzi ma być formatem JSON powinien zawierać 5 sekcji, jak w pożniszym formacie, bez żadnych dodatkowych komentarzy ani modyfikacji nagłówków.
       {
-          "Diagnoza_Główna": "Tutaj podaj najprawdopodobniejszą diagnozę główną na podstawie podanych danych",
-          "Uzasadnienie_Diagnozy": "Tutaj opisz uzasadnienie dla diagnozy głównej",             
-          "Diagnoza_Różnicowa": "Tutaj podaj najprawdopodobniejszą diagnozę różnicową na podstawie podanych danychę",
-          "Uzasadnienie_Różnicowe": "Tutaj opisz uzasadnienie dla diagnozy różnicowej", 
+          "Diagnoza_Główna": "Tutaj podaj najprawdopodobniejszą diagnozę na podstawie podanych danych. To pole ma zawierać tylko jedną nazwę choroby/schorzenia",
+          "Uzasadnienie_Diagnozy": "Tutaj podaj krótkie i zwięzłe uzasdanienie postawionej diagnozy",
+          "Diagnoza_Różnicowa": "Tutaj przedstaw najbardziej prawdopodobną diagnozę różnicowa. To pole ma zawierać tylko jedną nazwę choroby/schorzenia",
+          "Uzasadnienie_Różnicowe": "Tutaj podaj krótkie i zwięzłe uzasdanienie postawionej diagnozy rożnicowej",
           "Towarzystwo_Medyczne": "Tylko nazwa stowarzyszenia"
       }`;
 
@@ -136,14 +127,10 @@ exports.handler = async function(event, context) {
       // Jeśli nadal nie udało się sparsować JSON
       if (!parsedResponse) {
         console.log("❌ Zwracanie oryginalnej odpowiedzi jako tekst");
-        return {
-          statusCode: 207, // Partial Content - sukces, ale nie idealny format
-          body: JSON.stringify({ 
-            error: "Odpowiedź nie jest poprawnym JSON. Pokazuję tekst oryginalny.", 
-            rawResponse: responseContent 
-          }),
-          headers: { 'Content-Type': 'application/json' }
-        };
+        return res.status(207).json({ 
+          error: "Odpowiedź nie jest poprawnym JSON. Pokazuję tekst oryginalny.", 
+          rawResponse: responseContent 
+        });
       }
     }
 
@@ -160,14 +147,10 @@ exports.handler = async function(event, context) {
         Towarzystwo_Medyczne: !!parsedResponse.Towarzystwo_Medyczne
       });
       
-      return {
-        statusCode: 207, // Partial Content
-        body: JSON.stringify({ 
-          warning: "Niekompletna odpowiedź, brakuje wymaganych pól", 
-          data: parsedResponse 
-        }),
-        headers: { 'Content-Type': 'application/json' }
-      };
+      return res.status(207).json({ 
+        warning: "Niekompletna odpowiedź, brakuje wymaganych pól", 
+        data: parsedResponse 
+      });
     }
     
     console.log("✅ Wszystkie wymagane pola są obecne, zwracanie odpowiedzi");
@@ -176,17 +159,12 @@ exports.handler = async function(event, context) {
     console.log("📋 Towarzystwo medyczne:", parsedResponse.Towarzystwo_Medyczne);
 
     // Zwróć odpowiedź do klienta
-    return {
-      statusCode: 200,
-      body: JSON.stringify(parsedResponse),
-      headers: { 'Content-Type': 'application/json' }
-    };
+    return res.status(200).json(parsedResponse);
 
   } catch (error) {
     console.error("❌ Błąd podczas komunikacji z API:", error);
     
     let errorMessage = 'Wystąpił błąd podczas przetwarzania zapytania';
-    let statusCode = 500;
     let errorDetails = {};
     
     if (error.response) {
@@ -197,7 +175,6 @@ exports.handler = async function(event, context) {
       });
       
       errorMessage = `Błąd API: ${error.response.status} - ${error.response.data.error?.message || JSON.stringify(error.response.data)}`;
-      statusCode = error.response.status === 429 ? 429 : 502; // Rate limit lub inny błąd od API
       errorDetails = {
         status: error.response.status,
         message: error.response.data.error?.message,
@@ -207,21 +184,15 @@ exports.handler = async function(event, context) {
       // Brak odpowiedzi od API
       console.error("❌ Brak odpowiedzi od serwera API");
       errorMessage = 'Brak odpowiedzi od serwera API';
-      statusCode = 504; // Gateway Timeout
     } else {
       // Inny błąd
       console.error("❌ Nieoczekiwany błąd:", error.message);
       errorDetails = { message: error.message };
     }
     
-    return {
-      statusCode,
-      body: JSON.stringify({ 
-        error: errorMessage,
-        details: errorDetails
-      }),
-      headers: { 'Content-Type': 'application/json' }
-    };
+    return res.status(500).json({ 
+      error: errorMessage,
+      details: errorDetails
+    });
   }
-};
-
+}
