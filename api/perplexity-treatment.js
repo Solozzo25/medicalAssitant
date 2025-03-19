@@ -1,26 +1,20 @@
-// netlify/functions/perplexity-treatment.js
+// api/perplexity-treatment.js
 const axios = require('axios');
 
-exports.handler = async function(event, context) {
+export default async function handler(req, res) {
   console.log("🔄 Funkcja perplexity-treatment została wywołana");
   
   // Sprawdzenie czy metoda to POST
-  if (event.httpMethod !== 'POST') {
-    console.log("❌ Błąd: Niewłaściwa metoda HTTP:", event.httpMethod);
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method Not Allowed' }),
-      headers: {
-        'Allow': 'POST',
-        'Content-Type': 'application/json'
-      }
-    };
+  if (req.method !== 'POST') {
+    console.log("❌ Błąd: Niewłaściwa metoda HTTP:", req.method);
+    return res.status(405).json({ 
+      error: 'Method Not Allowed' 
+    });
   }
 
   try {
     // Parsowanie danych wejściowych
-    const requestData = JSON.parse(event.body);
-    const { diagnosis, medicalSociety } = requestData;
+    const { diagnosis, medicalSociety } = req.body;
     
     console.log("📋 Dane otrzymane:", { 
       diagnosis, 
@@ -30,23 +24,19 @@ exports.handler = async function(event, context) {
     // Sprawdzenie wymaganych pól
     if (!diagnosis || !medicalSociety) {
       console.log("❌ Błąd: Brakuje wymaganych pól");
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Brakuje diagnozy lub towarzystwa medycznego do przygotowania rekomendacji leczenia' }),
-        headers: { 'Content-Type': 'application/json' }
-      };
+      return res.status(400).json({ 
+        error: 'Brakuje diagnozy lub towarzystwa medycznego do przygotowania rekomendacji leczenia' 
+      });
     }
 
-    // Klucz API z zmiennych środowiskowych Netlify
+    // Klucz API z zmiennych środowiskowych
     const apiKey = process.env.PERPLEXITY_API_KEY;
     
     if (!apiKey) {
       console.log("❌ Błąd: Brak klucza API Perplexity w zmiennych środowiskowych");
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: 'Błąd konfiguracji API - brak klucza Perplexity' }),
-        headers: { 'Content-Type': 'application/json' }
-      };
+      return res.status(500).json({ 
+        error: 'Błąd konfiguracji API - brak klucza Perplexity' 
+      });
     }
     
     console.log("🔑 Klucz API Perplexity znaleziony (pierwszych 5 znaków):", apiKey.substring(0, 5) + '...');
@@ -87,7 +77,7 @@ Interakcje z innymi lekami.
     const perplexityResponse = await axios.post(
       'https://api.perplexity.ai/chat/completions',
       {
-        model: "sonar-reasoning", // lub inny model Perplexity AI
+        model: "llama-3-sonar-small-32k", // lub inny model Perplexity AI
         messages: [
           { role: "system", content: "Jesteś ekspertem w dziedzinie medycyny, specjalizującym się w leczeniu chorób na podstawie najnowszych wytycznych klinicznych." },
           { role: "user", content: prompt }
@@ -130,14 +120,10 @@ Interakcje z innymi lekami.
       console.log("📝 Próbowany JSON:", jsonMatch ? jsonMatch[0].substring(0, 100) + '...' : 'Nie znaleziono');
       
       // Jeśli nie udało się sparsować JSON, zwróć oryginalną odpowiedź jako tekst
-      return {
-        statusCode: 207, // Partial Content - sukces, ale nie idealny format
-        body: JSON.stringify({ 
-          error: "Odpowiedź nie jest poprawnym JSON. Pokazuję tekst oryginalny.", 
-          rawResponse: responseContent 
-        }),
-        headers: { 'Content-Type': 'application/json' }
-      };
+      return res.status(207).json({ 
+        error: "Odpowiedź nie jest poprawnym JSON. Pokazuję tekst oryginalny.", 
+        rawResponse: responseContent 
+      });
     }
 
     // Sprawdzenie czy JSON zawiera wymagane pola
@@ -146,14 +132,10 @@ Interakcje z innymi lekami.
     
     if (missingFields.length > 0) {
       console.log("⚠️ Niekompletna odpowiedź JSON, brakujące pola:", missingFields);
-      return {
-        statusCode: 207, // Partial Content
-        body: JSON.stringify({ 
-          warning: `Niekompletna odpowiedź, brakuje wymaganych pól: ${missingFields.join(', ')}`, 
-          data: parsedResponse 
-        }),
-        headers: { 'Content-Type': 'application/json' }
-      };
+      return res.status(207).json({ 
+        warning: `Niekompletna odpowiedź, brakuje wymaganych pól: ${missingFields.join(', ')}`, 
+        data: parsedResponse 
+      });
     }
     
     // Sprawdzenie czy charakterystyka leku zawiera wszystkie wymagane pola
@@ -162,31 +144,22 @@ Interakcje z innymi lekami.
     
     if (missingDrugFields.length > 0) {
       console.log("⚠️ Niekompletna charakterystyka leku, brakujące pola:", missingDrugFields);
-      return {
-        statusCode: 207, // Partial Content
-        body: JSON.stringify({ 
-          warning: `Niekompletna charakterystyka leku, brakuje pól: ${missingDrugFields.join(', ')}`, 
-          data: parsedResponse 
-        }),
-        headers: { 'Content-Type': 'application/json' }
-      };
+      return res.status(207).json({ 
+        warning: `Niekompletna charakterystyka leku, brakuje pól: ${missingDrugFields.join(', ')}`, 
+        data: parsedResponse 
+      });
     }
     
     console.log("✅ Wszystkie wymagane pola są obecne, zwracanie odpowiedzi");
     console.log("📋 Lek główny:", parsedResponse.Charakterystyka_Leku.Nazwa);
     
     // Zwróć odpowiedź do klienta
-    return {
-      statusCode: 200,
-      body: JSON.stringify(parsedResponse),
-      headers: { 'Content-Type': 'application/json' }
-    };
+    return res.status(200).json(parsedResponse);
 
   } catch (error) {
     console.error("❌ Błąd podczas komunikacji z API Perplexity:", error);
     
     let errorMessage = 'Wystąpił błąd podczas przetwarzania zapytania';
-    let statusCode = 500;
     let errorDetails = {};
     
     if (error.response) {
@@ -197,7 +170,6 @@ Interakcje z innymi lekami.
       });
       
       errorMessage = `Błąd API: ${error.response.status} - ${error.response.data.error?.message || JSON.stringify(error.response.data)}`;
-      statusCode = error.response.status === 429 ? 429 : 502; // Rate limit lub inny błąd od API
       errorDetails = {
         status: error.response.status,
         message: error.response.data.error?.message,
@@ -207,20 +179,15 @@ Interakcje z innymi lekami.
       // Brak odpowiedzi od API
       console.error("❌ Brak odpowiedzi od serwera API Perplexity");
       errorMessage = 'Brak odpowiedzi od serwera API';
-      statusCode = 504; // Gateway Timeout
     } else {
       // Inny błąd
       console.error("❌ Nieoczekiwany błąd:", error.message);
       errorDetails = { message: error.message };
     }
     
-    return {
-      statusCode,
-      body: JSON.stringify({ 
-        error: errorMessage,
-        details: errorDetails
-      }),
-      headers: { 'Content-Type': 'application/json' }
-    };
+    return res.status(500).json({ 
+      error: errorMessage,
+      details: errorDetails
+    });
   }
-};
+}
